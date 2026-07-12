@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#f7f3ee">
+  <link rel="stylesheet" href="./styles-v2.css">
+  <title>刷新多米成长记录</title>
+</head>
+<body>
+  <main class="app-shell">
+    <section class="card auth">
+      <h1>正在刷新应用</h1>
+      <p id="reset-status">正在注销旧的离线缓存，请保持当前页面打开。</p>
+      <p class="hint">此操作只清理 Service Worker 和 Cache Storage，不会删除 IndexedDB 中的成长记录。</p>
+    </section>
+  </main>
+  <script type="module" src="./reset.js"></script>
+</body>
+</html>
