@@ -26,12 +26,24 @@
 4. 打开 Actions 页面，等待 `Deploy GitHub Pages` 成功。
 5. 访问 `https://mrlpf.github.io/duomi-growth/`。
 
+> 仓库为私有时，能否发布 GitHub Pages 取决于当前 GitHub 套餐；私有仓库并不意味着 Pages 网站具备私有访问控制。
+
 ## iPhone 安装
 
 1. 使用 Safari 打开 Pages 地址。
 2. 完成首次主密码设置。
 3. 点击分享按钮 → **添加到主屏幕**。
 4. 首次加载完成后可断网使用。
+
+## 本地测试
+
+不要直接双击 `index.html`，请通过本地 HTTP 服务测试：
+
+```bash
+python3 -m http.server 8080
+```
+
+然后访问 `http://localhost:8080`。
 
 ## 更新缓存
 
