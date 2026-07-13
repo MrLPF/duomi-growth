@@ -1,82 +1,104 @@
 # 多米的成长记录
 
-这是从原始归档恢复的粉色宝宝成长日记网页，使用 Cloudflare Pages 从 GitHub 私有仓库自动部署。
+一个只依赖 GitHub Pages 的离线优先 PWA，用于记录宝宝信息、身高体重和每日喝奶数据。无需 App Store、Apple Developer 账号、Xcode、独立服务器或 Cloudflare。
 
-## 生产环境
+## 功能
 
-- GitHub 仓库：`MrLPF/duomi-growth`
-- 生产分支：`main`
-- Cloudflare Pages 项目：`duomi-growth`
-- 正式地址：`https://duomi.933520.xyz/`
-- 构建命令：留空
-- 构建输出目录：`.`
-
-GitHub Pages 工作流已经移除，避免与 Cloudflare Pages 重复部署。
-
-## 已恢复的界面与功能
-
-- 原始粉色卡片、星星与气泡装饰
+- 保留粉色卡片、星星与气泡设计
 - 每日喝奶记录、母乳/奶粉分类和当日累计
 - 成长记录新增、编辑、删除和分页
-- 身高、体重成长曲线
+- 本地 Canvas 身高体重曲线，不依赖 CDN
 - WHO 近似参考曲线和发育比例提示
-- 宝宝姓名和出生日期设置
-- iPhone、Android 添加到主屏幕
-- Service Worker 离线缓存
+- iPhone / Android 添加到主屏幕
+- Service Worker 缓存全部运行资源，首次加载后可离线使用
+- 本机主密码解锁和 5 分钟无操作自动锁定
+- IndexedDB 本地加密存储
+- PBKDF2-SHA256（600,000 次）派生密钥
+- AES-256-GCM 加密宝宝信息、成长记录和喝奶记录
+- 加密备份导出、恢复和主密码修改
+- 旧版 `localStorage` 数据自动加密迁移
 
-## 数据保存说明
+## 安全边界
 
-当前版本严格恢复了原始网页的数据结构，使用浏览器 `localStorage` 保存：
+普通 GitHub Pages 是公开静态网站。知道网址的人可以下载网页程序代码，但程序代码和 GitHub 仓库中不包含你的宝宝记录。
 
-- `childGrowthInfo`
-- `childGrowthRecords`
-- `childMilkRecords`
+本机账户的作用是解锁当前设备中的加密数据，并不能把 GitHub Pages 网址变成服务端私有网站。个人数据只保存在当前浏览器的 IndexedDB 中，保存前使用 AES-GCM 加密；主密码和解密密钥不会上传到 GitHub。
 
-这些数据不会自动上传到 GitHub 或 Cloudflare，但**当前版本没有对本地数据加密，也没有服务器账户同步或找回功能**。清除浏览器网站数据、删除主屏幕 Web App 或系统回收网站存储时，记录可能丢失。
+忘记主密码后无法通过邮箱找回。请定期导出加密备份，并把备份保存到 iCloud Drive 或其他安全位置。
 
-## Cloudflare Pages 配置
+## GitHub Pages 部署
 
-```text
-Production branch: main
-Framework preset: None
-Build command: 留空
-Build output directory: .
-```
-
-Custom domain：
-
-```text
-duomi.933520.xyz
-```
-
-DNS 应存在精确记录，并指向 Pages 项目的实际 `*.pages.dev` 地址：
+1. 将功能分支合并到 `main`。
+2. 打开仓库 **Settings → Pages**。
+3. 在 **Build and deployment** 中把 **Source** 设为 **GitHub Actions**。
+4. 打开 **Actions**，确认 `Deploy GitHub Pages` 工作流成功。
+5. 访问：
 
 ```text
-CNAME  duomi  duomi-growth.pages.dev  Proxied
+https://mrlpf.github.io/duomi-growth/
 ```
 
-精确的 `duomi` 记录应覆盖 `*.933520.xyz` 通配符 DNS。若仍进入旧服务器，需要检查 Tunnel Public Hostnames、Workers Domains & Routes、Redirect Rules 和 Origin Rules。
+之后每次推送到 `main`，GitHub Actions 都会自动发布新版本。
 
-## 首次打开与离线使用
+> 仓库可以是私有仓库，但普通 GitHub Pages 网站仍可能公开。是否能从私有仓库发布 Pages 取决于 GitHub 当前套餐。
 
-1. 联网打开 `https://duomi.933520.xyz/`。
-2. 输入宝宝信息，确认三个导航页面可正常切换。
-3. 重新加载页面一次，让 Service Worker 接管并缓存 Chart.js。
-4. Safari 分享 → 添加到主屏幕。
-5. 开启飞行模式后测试页面和已有记录。
+## 第一次使用
 
-图表库首次从 jsDelivr 加载，成功加载后由 Service Worker 缓存；其他核心页面资源直接由本站缓存。
+1. 使用 Safari 打开 GitHub Pages 地址。
+2. 设置至少 8 位主密码。
+3. 如果浏览器中存在旧版明文记录，应用会在成功创建密码后自动加密迁移，并删除对应的旧 `localStorage` 数据。
+4. 填写宝宝信息并测试记录功能。
+5. 点击导航栏的 `🔐`，导出第一份加密备份。
+6. Safari 分享 → **添加到主屏幕**。
+7. 重新打开主屏幕应用，然后开启飞行模式测试离线启动。
 
-## 清理旧版本缓存
+## 数据与备份
 
-域名曾部署过其他页面时，访问：
+导航栏的 `🔐` 面板提供：
+
+- 导出加密备份
+- 导入加密备份
+- 修改主密码
+- 立即锁定
+
+备份文件扩展名为 `.duomi`，文件中只包含加密元数据和密文。恢复时必须输入创建该备份时使用的主密码。
+
+修改主密码后，应立即重新导出备份；旧备份仍需要旧密码才能解密。
+
+## 本地测试
+
+不要直接双击 `index.html`。Service Worker、Web Crypto 和部分 PWA 功能需要安全上下文，请使用本地 HTTP 服务：
+
+```bash
+python3 -m http.server 8080
+```
+
+然后访问：
 
 ```text
-https://duomi.933520.xyz/reset.html
+http://localhost:8080
 ```
 
-该页面会注销旧 Service Worker、清理 Cache Storage 并跳转到新版应用。它不会主动删除 `localStorage` 中的成长和喝奶记录。
+## 自动检查
 
-## 发布版本
+Pull Request 会运行 `Validate secure offline PWA`，检查：
 
-当前恢复版本：`2026.07.13-exact-design`
+- JavaScript 语法
+- Manifest JSON
+- 关键离线文件是否存在
+- 页面是否重新引入远程脚本或样式
+- 新增资源是否列入 Service Worker 缓存
+
+## 清理旧缓存
+
+曾经打开过旧部署版本时，可以访问：
+
+```text
+https://mrlpf.github.io/duomi-growth/reset.html
+```
+
+该页面用于注销旧 Service Worker 和清理 Cache Storage。执行前请先导出备份；不要手动清除网站数据，除非确定不再需要本机记录。
+
+## 当前版本
+
+`2026.07.13-secure-offline-v2`
