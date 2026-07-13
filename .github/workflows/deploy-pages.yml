@@ -22,10 +22,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare static site
+        run: |
+          mkdir -p _site/icons
+          cp index.html reset.html reset.js manifest.webmanifest app-design.css secure-vault.css sw.js app-design-*.js offline-chart.js secure-vault.js .nojekyll _site/
+          cp -R icons/. _site/icons/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
