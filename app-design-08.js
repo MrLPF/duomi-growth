@@ -115,8 +115,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js?v=20260713secure2', { scope: './' })
+    navigator.serviceWorker.register('sw.js?v=20260713archive3', {
+      scope: './',
+      updateViaCache: 'none'
+    })
       .then(function (registration) {
+        registration.update().catch(function () {});
         console.log('Service Worker 注册成功:', registration.scope);
       })
       .catch(function (error) {
