@@ -1,0 +1,166 @@
+body.secure-locked > :not(.secure-gate):not(#secureBackupInput) {
+  filter: blur(8px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.secure-gate,
+.secure-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  background: rgba(255, 249, 250, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.secure-gate[hidden],
+.secure-panel[hidden] {
+  display: none !important;
+}
+
+.secure-card {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 28px 24px;
+  border: 1px solid #f0e0e8;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 18px 60px rgba(93, 78, 96, 0.16);
+  text-align: center;
+}
+
+.secure-card h1,
+.secure-card h2 {
+  margin: 0 0 10px;
+  color: #5d4e60;
+}
+
+.secure-card > p {
+  margin: 0 0 18px;
+  color: #817482;
+  line-height: 1.65;
+}
+
+.secure-icon {
+  margin-bottom: 8px;
+  font-size: 42px;
+}
+
+.secure-form {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0 12px;
+  text-align: left;
+}
+
+.secure-form[hidden] {
+  display: none;
+}
+
+.secure-form label {
+  display: grid;
+  gap: 6px;
+  color: #5d4e60;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.secure-form input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 13px;
+  border: 1px solid #ead7e2;
+  border-radius: 13px;
+  color: #5d4e60;
+  background: #fff;
+  font: inherit;
+  outline: none;
+}
+
+.secure-form input:focus {
+  border-color: #ff9ebb;
+  box-shadow: 0 0 0 3px rgba(255, 158, 187, 0.16);
+}
+
+.secure-wide {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.secure-message {
+  min-height: 24px;
+  margin: 12px 0 0 !important;
+  color: #6c9d78 !important;
+  font-size: 13px;
+}
+
+.secure-message.error {
+  color: #d75875 !important;
+}
+
+.secure-note {
+  margin: 10px 0 0 !important;
+  color: #a0929f !important;
+  font-size: 12px;
+}
+
+.secure-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff0f5;
+  color: #9a8998;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.secure-actions {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 8px;
+}
+
+.native-chart-tooltip {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  gap: 3px;
+  width: 145px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(93, 78, 96, 0.92);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(93, 78, 96, 0.24);
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.native-chart-tooltip[hidden] {
+  display: none;
+}
+
+.native-chart-tooltip strong {
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .secure-card {
+    padding: 24px 18px;
+    border-radius: 20px;
+  }
+
+  .navbar-actions {
+    gap: 2px;
+  }
+}
