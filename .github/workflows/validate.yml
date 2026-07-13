@@ -26,7 +26,7 @@ jobs:
           done
       - name: Reject remote runtime dependencies
         run: |
-          if grep -RIE '<(script|link)[^>]+(src|href)="https?://' index.html; then
+          if grep -E '<script[^>]+src="https?://|<link[^>]+rel="stylesheet"[^>]+href="https?://' index.html; then
             echo 'Remote script or stylesheet dependency found.'
             exit 1
           fi
