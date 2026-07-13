@@ -1,4 +1,4 @@
-name: Validate secure offline PWA
+name: Validate exact archive PWA
 
 on:
   pull_request:
@@ -12,26 +12,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check JavaScript syntax
+
+      - name: Reconstruct and verify original single-file page
+        shell: bash
         run: |
-          for file in app-design-*.js secure-vault.js offline-chart.js sw.js reset.js; do
-            if [ -f "$file" ]; then node --check "$file"; fi
-          done
-      - name: Validate manifest
-        run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest', 'utf8'))"
-      - name: Check required offline files
-        run: |
-          for file in index.html app-design.css secure-vault.css secure-vault.js offline-chart.js sw.js manifest.webmanifest icons/icon-192.svg icons/icon-512.svg .nojekyll; do
-            test -f "$file" || { echo "Missing $file"; exit 1; }
-          done
-      - name: Reject remote runtime dependencies
-        run: |
-          if grep -E '<script[^>]+src="https?://|<link[^>]+rel="stylesheet"[^>]+href="https?://' index.html; then
-            echo 'Remote script or stylesheet dependency found.'
+          set -euo pipefail
+          cat archive/index.html.gz.b64.part* | tr -d '\n\r' | base64 --decode | gzip -dc > /tmp/archive-index.html
+          echo '822011470386e15a5d3be8028b338202adec9c134734ab2ad6daf33e9b5cfc3b  /tmp/archive-index.html' | sha256sum --check --strict
+          test "$(wc -c < /tmp/archive-index.html)" -eq 76232
+          grep -q '2026.07.13-original-archive-secure-v3' /tmp/archive-index.html
+          grep -q '每日喝奶' /tmp/archive-index.html
+          grep -q '成长记录' /tmp/archive-index.html
+          grep -q '成长曲线' /tmp/archive-index.html
+          grep -q '<style>' /tmp/archive-index.html
+          if grep -q 'app-design-' /tmp/archive-index.html; then
+            echo 'Split replacement page was referenced instead of the original archive page.'
             exit 1
           fi
-      - name: Verify service worker cache entries
+
+      - name: Verify pinned Chart.js archive dependency
+        shell: bash
         run: |
-          for file in secure-vault.css secure-vault.js offline-chart.js app-design-08.js; do
-            grep -q "$file" sw.js || { echo "$file is not cached"; exit 1; }
-          done
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js' \
+            --output /tmp/chart.umd.min.js
+          echo '206b6e8bb00fc7bba2c7ee80ca41db3e9e05ba7be0aa35abeba9cfd5357f5d0e  /tmp/chart.umd.min.js' | sha256sum --check --strict
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check secure-vault.js
+          node --check sw.js
+          if [ -f reset.js ]; then node --check reset.js; fi
+
+      - name: Validate original manifest
+        run: node -e "const m=JSON.parse(require('fs').readFileSync('manifest.json','utf8')); if(m.name!=='多米的成长记录'||m.icons.length!==2) process.exit(1)"
+
+      - name: Verify exact runtime asset references
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'manifest.json?v=20260713archive3' /tmp/archive-index.html
+          grep -q 'chart.umd.min.js?v=20260713archive3' /tmp/archive-index.html
+          grep -q 'secure-vault.css?v=20260713archive3' /tmp/archive-index.html
+          grep -q 'secure-vault.js?v=20260713archive3' /tmp/archive-index.html
+          grep -q 'duomi-growth-original-archive-v9' sw.js
