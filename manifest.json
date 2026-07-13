@@ -1,0 +1,16 @@
+{
+  "name": "多米的成长记录",
+  "short_name": "多米成长",
+  "description": "记录宝宝的成长数据和每日喝奶情况",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FFF9FA",
+  "theme_color": "#FF9EBB",
+  "lang": "zh-CN",
+  "icons": [
+    {"src":"./icons/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},
+    {"src":"./icons/icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
