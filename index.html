@@ -16,23 +16,13 @@
   <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.svg">
   <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.svg">
   <link rel="stylesheet" href="app-design.css?v=20260713">
-  <script src="chart.umd.min.js?v=4.4.7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
-
-  <!-- 背景星星装饰 -->
   <div class="sparkle-container">
-    <span class="sparkle">✦</span>
-    <span class="sparkle">✧</span>
-    <span class="sparkle">⭐</span>
-    <span class="sparkle">✦</span>
-    <span class="sparkle">✧</span>
+    <span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">⭐</span><span class="sparkle">✦</span><span class="sparkle">✧</span>
   </div>
-
-  <!-- ========== Toast 提示 ========== -->
   <div id="toast" class="toast"></div>
-
-  <!-- ========== 顶部导航栏 ========== -->
   <nav class="navbar">
     <div class="navbar-title" id="navTitle">多米的成长记录 🌱</div>
     <div class="navbar-nav">
@@ -40,240 +30,65 @@
       <button class="nav-tab" data-page="list" onclick="navigateTo('list')">成长记录 📋</button>
       <button class="nav-tab" data-page="chart" onclick="navigateTo('chart')">成长曲线 📈</button>
     </div>
-    <div class="navbar-actions">
-      <button class="settings-btn" title="设置宝宝信息" onclick="showChildInfoModal()">
-        👶
-      </button>
-    </div>
+    <div class="navbar-actions"><button class="settings-btn" title="设置宝宝信息" onclick="showChildInfoModal()">👶</button></div>
   </nav>
-
-  <!-- ========== 页面内容区 ========== -->
   <div class="page-container">
-
-    <!-- ===== 页面1：成长记录 ===== -->
     <section id="page-list" class="page-section">
       <div class="card">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-          <div class="card-title">成长记录 📏</div>
-          <button class="btn btn-primary" onclick="openAddModal()" style="margin: 0;">✨ 新增记录</button>
-        </div>
-        <div id="listContent">
-          <!-- 由JS动态渲染 -->
-        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;"><div class="card-title">成长记录 📏</div><button class="btn btn-primary" onclick="openAddModal()" style="margin:0;">✨ 新增记录</button></div>
+        <div id="listContent"></div>
       </div>
     </section>
-
-    <!-- ===== 页面2：每日喝奶 ===== -->
     <section id="page-milk" class="page-section active">
       <div class="card">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-          <div class="card-title">每日喝奶 🍼</div>
-          <button class="btn btn-primary" onclick="openMilkModal()" style="margin: 0;">🍼 记录喝奶</button>
-        </div>
-        <!-- 今日总量卡片 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><div class="card-title">每日喝奶 🍼</div><button class="btn btn-primary" onclick="openMilkModal()" style="margin:0;">🍼 记录喝奶</button></div>
         <div id="milkTodaySummary" class="milk-summary-card"></div>
-        <!-- 日期筛选 -->
-        <div class="milk-date-filter">
-          <label class="form-label">查看日期：</label>
-          <input type="date" id="milkFilterDate" class="form-input milk-date-input" onchange="renderMilkList()">
-        </div>
-        <!-- 喝奶记录列表 -->
+        <div class="milk-date-filter"><label class="form-label">查看日期：</label><input type="date" id="milkFilterDate" class="form-input milk-date-input" onchange="renderMilkList()"></div>
         <div id="milkListContent"></div>
       </div>
     </section>
-
-    <!-- ===== 页面3：成长曲线 ===== -->
     <section id="page-chart" class="page-section">
-      <div class="card">
-        <div class="card-title">成长曲线 📈</div>
-        <div id="chartContent">
-          <div class="chart-canvas-wrapper">
-            <canvas id="growthChart"></canvas>
-          </div>
-        </div>
-      </div>
+      <div class="card"><div class="card-title">成长曲线 📈</div><div id="chartContent"><div class="chart-canvas-wrapper"><canvas id="growthChart"></canvas></div></div></div>
     </section>
-
   </div>
-
-  <!-- ========== 喝奶记录模态框 ========== -->
-  <div id="milkModal" class="modal-overlay" onclick="handleMilkOverlayClick(event)">
-    <div class="modal">
-      <div class="modal-title">🍼 记录喝奶</div>
-      <form id="milkForm" onsubmit="handleMilkSubmit(event)">
-        <div class="form-group">
-          <label class="form-label" for="milkDate">📅 日期</label>
-          <input type="date" id="milkDate" class="form-input" required>
-          <div class="error-msg" id="milkDateError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="milkTime">⏰ 时间</label>
-          <input type="time" id="milkTime" class="form-input" required>
-          <div class="error-msg" id="milkTimeError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="milkAmount">🥛 喝奶量 (ml)</label>
-          <div class="input-wrapper">
-            <input type="number" id="milkAmount" class="form-input has-unit" step="1" min="1" max="500" placeholder="请输入喝奶量" required>
-            <span class="input-unit">ml</span>
-          </div>
-          <div class="error-msg" id="milkAmountError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">🍼 奶粉类型</label>
-          <div class="milk-type-group">
-            <label class="milk-type-option">
-              <input type="radio" name="milkType" value="breast" checked> 🤱 母乳
-            </label>
-            <label class="milk-type-option">
-              <input type="radio" name="milkType" value="formula"> 🍼 奶粉
-            </label>
-          </div>
-        </div>
-        <div class="btn-group">
-          <button type="submit" class="btn btn-primary">💾 保存记录</button>
-          <button type="button" class="btn btn-secondary" onclick="closeMilkModal()">取消</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ========== 修改喝奶记录模态框 ========== -->
-  <div id="editMilkModal" class="modal-overlay" onclick="handleEditMilkOverlayClick(event)">
-    <div class="modal">
-      <div class="modal-title">✏️ 修改喝奶记录</div>
-      <input type="hidden" id="editMilkId">
-      <form id="editMilkForm" onsubmit="handleEditMilkSubmit(event)">
-        <div class="form-group">
-          <label class="form-label" for="editMilkDate">📅 日期</label>
-          <input type="date" id="editMilkDate" class="form-input" required>
-          <div class="error-msg" id="editMilkDateError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="editMilkTime">⏰ 时间</label>
-          <input type="time" id="editMilkTime" class="form-input" required>
-          <div class="error-msg" id="editMilkTimeError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="editMilkAmount">🥛 喝奶量 (ml)</label>
-          <div class="input-wrapper">
-            <input type="number" id="editMilkAmount" class="form-input has-unit" step="1" min="1" max="500" placeholder="请输入喝奶量" required>
-            <span class="input-unit">ml</span>
-          </div>
-          <div class="error-msg" id="editMilkAmountError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">🍼 奶粉类型</label>
-          <div class="milk-type-group">
-            <label class="milk-type-option">
-              <input type="radio" name="editMilkType" value="breast"> 🤱 母乳
-            </label>
-            <label class="milk-type-option">
-              <input type="radio" name="editMilkType" value="formula"> 🍼 奶粉
-            </label>
-          </div>
-        </div>
-        <div class="btn-group">
-          <button type="submit" class="btn btn-primary">💾 保存修改</button>
-          <button type="button" class="btn btn-secondary" onclick="closeEditMilkModal()">取消</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ========== 新增记录模态框 ========== -->
-  <div id="addModal" class="modal-overlay" onclick="handleAddModalOverlayClick(event)">
-    <div class="modal">
-      <div class="modal-title">✨ 新增成长记录</div>
-      <form id="addForm" onsubmit="handleAddSubmit(event)">
-        <div class="form-group">
-          <label class="form-label" for="addDate">📅 记录日期</label>
-          <input type="date" id="addDate" class="form-input" max="">
-          <div class="error-msg" id="addDateError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="addHeight">📏 身高 (cm)</label>
-          <div class="input-wrapper">
-            <input type="number" id="addHeight" class="form-input has-unit" step="0.1" min="1" max="250" placeholder="请输入身高">
-            <span class="input-unit">cm</span>
-          </div>
-          <div class="error-msg" id="addHeightError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="addWeight">⚖️ 体重 (kg)</label>
-          <div class="input-wrapper">
-            <input type="number" id="addWeight" class="form-input has-unit" step="0.01" min="0.1" max="200" placeholder="请输入体重">
-            <span class="input-unit">kg</span>
-          </div>
-          <div class="error-msg" id="addWeightError"></div>
-        </div>
-        <div class="btn-group">
-          <button type="submit" class="btn btn-primary">保存记录 💾</button>
-          <button type="button" class="btn btn-secondary" onclick="closeAddModal()">取消</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ========== 编辑模态框 ========== -->
-  <div id="editModal" class="modal-overlay" onclick="handleModalOverlayClick(event)">
-    <div class="modal">
-      <div class="modal-title">✏️ 编辑记录</div>
-      <form id="editForm" onsubmit="handleEditSubmit(event)">
-        <input type="hidden" id="editId">
-        <div class="form-group">
-          <label class="form-label" for="editDate">📅 记录日期</label>
-          <input type="date" id="editDate" class="form-input" max="">
-          <div class="error-msg" id="editDateError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="editHeight">📏 身高 (cm)</label>
-          <div class="input-wrapper">
-            <input type="number" id="editHeight" class="form-input has-unit" step="0.1" min="1" max="250" placeholder="请输入身高">
-            <span class="input-unit">cm</span>
-          </div>
-          <div class="error-msg" id="editHeightError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="editWeight">⚖️ 体重 (kg)</label>
-          <div class="input-wrapper">
-            <input type="number" id="editWeight" class="form-input has-unit" step="0.01" min="0.1" max="200" placeholder="请输入体重">
-            <span class="input-unit">kg</span>
-          </div>
-          <div class="error-msg" id="editWeightError"></div>
-        </div>
-        <div class="btn-group">
-          <button type="submit" class="btn btn-primary">保存 💾</button>
-          <button type="button" class="btn btn-secondary" onclick="closeEditModal()">取消</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ========== 宝宝信息设置模态框 ========== -->
-  <div id="childInfoModal" class="modal-overlay" onclick="handleChildInfoOverlayClick(event)">
-    <div class="modal">
-      <div class="modal-title">🍼 宝宝信息</div>
-      <div class="welcome-icon">&#x1F476;</div>
-      <form id="childInfoForm" onsubmit="handleChildInfoSubmit(event)">
-        <div class="form-group">
-          <label class="form-label" for="childName">👶 宝宝姓名</label>
-          <input type="text" id="childName" class="form-input" placeholder="请输入宝宝姓名" maxlength="20">
-          <div class="error-msg" id="childNameError"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="childBirthDate">🎂 出生日期</label>
-          <input type="date" id="childBirthDate" class="form-input" max="">
-          <div class="error-msg" id="childBirthDateError"></div>
-        </div>
-        <div class="btn-group">
-          <button type="submit" class="btn btn-primary">保存 💾</button>
-          <button type="button" class="btn btn-secondary" onclick="closeChildInfoModal()" id="childInfoCancelBtn" style="display:none;">取消</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script src="app-design.js?v=20260713"></script>
+  <div id="milkModal" class="modal-overlay" onclick="handleMilkOverlayClick(event)"><div class="modal"><div class="modal-title">🍼 记录喝奶</div><form id="milkForm" onsubmit="handleMilkSubmit(event)">
+    <div class="form-group"><label class="form-label" for="milkDate">📅 日期</label><input type="date" id="milkDate" class="form-input" required><div class="error-msg" id="milkDateError"></div></div>
+    <div class="form-group"><label class="form-label" for="milkTime">⏰ 时间</label><input type="time" id="milkTime" class="form-input" required><div class="error-msg" id="milkTimeError"></div></div>
+    <div class="form-group"><label class="form-label" for="milkAmount">🥛 喝奶量 (ml)</label><div class="input-wrapper"><input type="number" id="milkAmount" class="form-input has-unit" step="1" min="1" max="500" placeholder="请输入喝奶量" required><span class="input-unit">ml</span></div><div class="error-msg" id="milkAmountError"></div></div>
+    <div class="form-group"><label class="form-label">🍼 奶粉类型</label><div class="milk-type-group"><label class="milk-type-option"><input type="radio" name="milkType" value="breast" checked> 🤱 母乳</label><label class="milk-type-option"><input type="radio" name="milkType" value="formula"> 🍼 奶粉</label></div></div>
+    <div class="btn-group"><button type="submit" class="btn btn-primary">💾 保存记录</button><button type="button" class="btn btn-secondary" onclick="closeMilkModal()">取消</button></div>
+  </form></div></div>
+  <div id="editMilkModal" class="modal-overlay" onclick="handleEditMilkOverlayClick(event)"><div class="modal"><div class="modal-title">✏️ 修改喝奶记录</div><input type="hidden" id="editMilkId"><form id="editMilkForm" onsubmit="handleEditMilkSubmit(event)">
+    <div class="form-group"><label class="form-label" for="editMilkDate">📅 日期</label><input type="date" id="editMilkDate" class="form-input" required><div class="error-msg" id="editMilkDateError"></div></div>
+    <div class="form-group"><label class="form-label" for="editMilkTime">⏰ 时间</label><input type="time" id="editMilkTime" class="form-input" required><div class="error-msg" id="editMilkTimeError"></div></div>
+    <div class="form-group"><label class="form-label" for="editMilkAmount">🥛 喝奶量 (ml)</label><div class="input-wrapper"><input type="number" id="editMilkAmount" class="form-input has-unit" step="1" min="1" max="500" placeholder="请输入喝奶量" required><span class="input-unit">ml</span></div><div class="error-msg" id="editMilkAmountError"></div></div>
+    <div class="form-group"><label class="form-label">🍼 奶粉类型</label><div class="milk-type-group"><label class="milk-type-option"><input type="radio" name="editMilkType" value="breast"> 🤱 母乳</label><label class="milk-type-option"><input type="radio" name="editMilkType" value="formula"> 🍼 奶粉</label></div></div>
+    <div class="btn-group"><button type="submit" class="btn btn-primary">💾 保存修改</button><button type="button" class="btn btn-secondary" onclick="closeEditMilkModal()">取消</button></div>
+  </form></div></div>
+  <div id="addModal" class="modal-overlay" onclick="handleAddModalOverlayClick(event)"><div class="modal"><div class="modal-title">✨ 新增成长记录</div><form id="addForm" onsubmit="handleAddSubmit(event)">
+    <div class="form-group"><label class="form-label" for="addDate">📅 记录日期</label><input type="date" id="addDate" class="form-input" max=""><div class="error-msg" id="addDateError"></div></div>
+    <div class="form-group"><label class="form-label" for="addHeight">📏 身高 (cm)</label><div class="input-wrapper"><input type="number" id="addHeight" class="form-input has-unit" step="0.1" min="1" max="250" placeholder="请输入身高"><span class="input-unit">cm</span></div><div class="error-msg" id="addHeightError"></div></div>
+    <div class="form-group"><label class="form-label" for="addWeight">⚖️ 体重 (kg)</label><div class="input-wrapper"><input type="number" id="addWeight" class="form-input has-unit" step="0.01" min="0.1" max="200" placeholder="请输入体重"><span class="input-unit">kg</span></div><div class="error-msg" id="addWeightError"></div></div>
+    <div class="btn-group"><button type="submit" class="btn btn-primary">保存记录 💾</button><button type="button" class="btn btn-secondary" onclick="closeAddModal()">取消</button></div>
+  </form></div></div>
+  <div id="editModal" class="modal-overlay" onclick="handleModalOverlayClick(event)"><div class="modal"><div class="modal-title">✏️ 编辑记录</div><form id="editForm" onsubmit="handleEditSubmit(event)"><input type="hidden" id="editId">
+    <div class="form-group"><label class="form-label" for="editDate">📅 记录日期</label><input type="date" id="editDate" class="form-input" max=""><div class="error-msg" id="editDateError"></div></div>
+    <div class="form-group"><label class="form-label" for="editHeight">📏 身高 (cm)</label><div class="input-wrapper"><input type="number" id="editHeight" class="form-input has-unit" step="0.1" min="1" max="250" placeholder="请输入身高"><span class="input-unit">cm</span></div><div class="error-msg" id="editHeightError"></div></div>
+    <div class="form-group"><label class="form-label" for="editWeight">⚖️ 体重 (kg)</label><div class="input-wrapper"><input type="number" id="editWeight" class="form-input has-unit" step="0.01" min="0.1" max="200" placeholder="请输入体重"><span class="input-unit">kg</span></div><div class="error-msg" id="editWeightError"></div></div>
+    <div class="btn-group"><button type="submit" class="btn btn-primary">保存 💾</button><button type="button" class="btn btn-secondary" onclick="closeEditModal()">取消</button></div>
+  </form></div></div>
+  <div id="childInfoModal" class="modal-overlay" onclick="handleChildInfoOverlayClick(event)"><div class="modal"><div class="modal-title">🍼 宝宝信息</div><div class="welcome-icon">&#x1F476;</div><form id="childInfoForm" onsubmit="handleChildInfoSubmit(event)">
+    <div class="form-group"><label class="form-label" for="childName">👶 宝宝姓名</label><input type="text" id="childName" class="form-input" placeholder="请输入宝宝姓名" maxlength="20"><div class="error-msg" id="childNameError"></div></div>
+    <div class="form-group"><label class="form-label" for="childBirthDate">🎂 出生日期</label><input type="date" id="childBirthDate" class="form-input" max=""><div class="error-msg" id="childBirthDateError"></div></div>
+    <div class="btn-group"><button type="submit" class="btn btn-primary">保存 💾</button><button type="button" class="btn btn-secondary" onclick="closeChildInfoModal()" id="childInfoCancelBtn" style="display:none;">取消</button></div>
+  </form></div></div>
+  <script src="app-design-01.js?v=20260713"></script>
+  <script src="app-design-02.js?v=20260713"></script>
+  <script src="app-design-03.js?v=20260713"></script>
+  <script src="app-design-04.js?v=20260713"></script>
+  <script src="app-design-05.js?v=20260713"></script>
+  <script src="app-design-06.js?v=20260713"></script>
+  <script src="app-design-07.js?v=20260713"></script>
+  <script src="app-design-08.js?v=20260713"></script>
 </body>
 </html>
