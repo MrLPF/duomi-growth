@@ -6,18 +6,14 @@
   <title>多米的成长记录 🌱</title>
   <meta name="description" content="记录多米宝宝的成长数据和每日喝奶情况">
   <meta name="theme-color" content="#FF9EBB">
-  <meta name="app-version" content="2026.07.13-original-archive-secure-v3">
-  <meta name="robots" content="noindex,nofollow,noarchive">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="成长记录">
-  <link rel="manifest" href="manifest.json?v=20260713archive3">
+  <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
-  <link rel="stylesheet" href="secure-vault.css?v=20260713archive3">
-  <script src="chart.umd.min.js?v=20260713archive3"></script>
-  <script src="secure-vault.js?v=20260713archive3"></script>
+  <script src="chart.umd.min.js"></script>
   <style>
     /* ========== 基础重置与全局样式 ========== */
     *, *::before, *::after {
@@ -962,9 +958,6 @@
       <button class="nav-tab" data-page="chart" onclick="navigateTo('chart')">成长曲线 📈</button>
     </div>
     <div class="navbar-actions">
-      <button class="settings-btn" title="数据与安全" aria-label="数据与安全" onclick="SecureVault.openSecurityPanel()">
-        🔐
-      </button>
       <button class="settings-btn" title="设置宝宝信息" onclick="showChildInfoModal()">
         👶
       </button>
@@ -2443,9 +2436,7 @@
 
     // ========== 初始化 ==========
 
-    async function init() {
-      await window.SecureVault.bootstrap();
-
+    function init() {
       // 设置日期选择器的最大值为今天
       const today = getTodayStr();
       document.getElementById('editDate').setAttribute('max', today);
@@ -2468,17 +2459,12 @@
     }
 
     // DOM加载完成后初始化
-    document.addEventListener('DOMContentLoaded', function () {
-      init().catch(function (error) {
-        console.error('应用初始化失败:', error);
-        showToast('应用初始化失败，请重新打开');
-      });
-    });
+    document.addEventListener('DOMContentLoaded', init);
 
     // 注册 Service Worker 实现PWA离线使用
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=20260713archive3')
+        navigator.serviceWorker.register('sw.js')
           .then((registration) => {
             console.log('Service Worker 注册成功:', registration.scope);
           })
