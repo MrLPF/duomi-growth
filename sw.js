@@ -1,10 +1,8 @@
-const CACHE = 'duomi-growth-v4';
+const CACHE = 'duomi-growth-pink-v1';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles-v2.css',
-  './app.js',
-  './manifest.webmanifest',
+  './manifest.json',
   './icons/icon-192.svg',
   './icons/icon-512.svg'
 ];
@@ -15,18 +13,15 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(
-      keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))
-    ))
-  );
+  event.waitUntil(caches.keys().then((keys) => Promise.all(
+    keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))
+  )));
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
-
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
@@ -37,11 +32,9 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })
         .then((response) => {
-          if (response.ok) {
-            caches.open(CACHE).then((cache) => cache.put('./index.html', response.clone()));
-          }
+          if (response.ok) caches.open(CACHE).then((cache) => cache.put('./index.html', response.clone()));
           return response;
         })
         .catch(() => caches.match('./index.html'))
@@ -49,15 +42,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const refresh = fetch(request).then((response) => {
-        if (response.ok) {
-          caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
-        }
-        return response;
-      });
-      return cached || refresh;
-    })
-  );
+  event.respondWith(caches.match(request).then((cached) => {
+    const refresh = fetch(request).then((response) => {
+      if (response.ok) caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
+      return response;
+    });
+    return cached || refresh;
+  }));
 });
