@@ -1,4 +1,4 @@
-const CACHE = 'duomi-growth-exact-design-v6';
+const CACHE = 'duomi-growth-exact-design-v7';
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const APP_SHELL = [
   './app-design-06.js?v=20260713',
   './app-design-07.js?v=20260713',
   './app-design-08.js?v=20260713',
+  './chart-guard.js?v=20260713',
   './icons/icon-192.svg',
   './icons/icon-512.svg'
 ];
