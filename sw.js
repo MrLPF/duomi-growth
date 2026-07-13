@@ -1,46 +1,53 @@
-const CACHE = 'duomi-growth-exact-design-v7';
+const CACHE = 'duomi-growth-secure-offline-v7';
+const VERSION = '20260713secure2';
 const APP_SHELL = [
   './',
   './index.html',
-  './manifest.webmanifest?v=20260713',
-  './app-design.css?v=20260713',
-  './app-design-01.js?v=20260713',
-  './app-design-02.js?v=20260713',
-  './app-design-03.js?v=20260713',
-  './app-design-04.js?v=20260713',
-  './app-design-05.js?v=20260713',
-  './app-design-06.js?v=20260713',
-  './app-design-07.js?v=20260713',
-  './app-design-08.js?v=20260713',
-  './chart-guard.js?v=20260713',
+  './manifest.webmanifest?v=' + VERSION,
+  './app-design.css?v=' + VERSION,
+  './secure-vault.css?v=' + VERSION,
+  './app-design-01.js?v=' + VERSION,
+  './app-design-02.js?v=' + VERSION,
+  './app-design-03.js?v=' + VERSION,
+  './app-design-04.js?v=' + VERSION,
+  './app-design-05.js?v=' + VERSION,
+  './offline-chart.js?v=' + VERSION,
+  './app-design-06.js?v=' + VERSION,
+  './app-design-07.js?v=' + VERSION,
+  './secure-vault.js?v=' + VERSION,
+  './app-design-08.js?v=' + VERSION,
   './icons/icon-192.svg',
   './icons/icon-512.svg'
 ];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)));
+self.addEventListener('install', function (event) {
+  event.waitUntil(caches.open(CACHE).then(function (cache) {
+    return cache.addAll(APP_SHELL);
+  }));
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(
-      keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))
-    ))
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (key) {
+        return key !== CACHE;
+      }).map(function (key) {
+        return caches.delete(key);
+      }));
+    })
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', function (event) {
   const request = event.request;
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-  const isSameOrigin = url.origin === self.location.origin;
-  const isChartCdn = url.hostname === 'cdn.jsdelivr.net' && url.pathname.includes('/chart.js@4.4.7/');
-  if (!isSameOrigin && !isChartCdn) return;
+  if (url.origin !== self.location.origin) return;
 
-  if (isSameOrigin && (url.pathname.endsWith('/reset.html') || url.pathname.endsWith('/reset.js'))) {
+  if (url.pathname.endsWith('/reset.html') || url.pathname.endsWith('/reset.js')) {
     event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
@@ -48,26 +55,32 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
-        .then((response) => {
+        .then(function (response) {
           if (response.ok) {
-            caches.open(CACHE).then((cache) => cache.put('./index.html', response.clone()));
+            caches.open(CACHE).then(function (cache) {
+              cache.put('./index.html', response.clone());
+            });
           }
           return response;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(function () {
+          return caches.match('./index.html');
+        })
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request).then((response) => {
-        if (response.ok || response.type === 'opaque') {
-          caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
+    caches.match(request).then(function (cached) {
+      if (cached) return cached;
+      return fetch(request).then(function (response) {
+        if (response.ok) {
+          caches.open(CACHE).then(function (cache) {
+            cache.put(request, response.clone());
+          });
         }
         return response;
-      }).catch(() => cached || Response.error());
-      return cached || network;
+      });
     })
   );
 });

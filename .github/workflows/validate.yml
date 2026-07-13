@@ -1,0 +1,37 @@
+name: Validate secure offline PWA
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: |
+          for file in app-design-*.js secure-vault.js offline-chart.js sw.js reset.js; do
+            if [ -f "$file" ]; then node --check "$file"; fi
+          done
+      - name: Validate manifest
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest', 'utf8'))"
+      - name: Check required offline files
+        run: |
+          for file in index.html app-design.css secure-vault.css secure-vault.js offline-chart.js sw.js manifest.webmanifest icons/icon-192.svg icons/icon-512.svg .nojekyll; do
+            test -f "$file" || { echo "Missing $file"; exit 1; }
+          done
+      - name: Reject remote runtime dependencies
+        run: |
+          if grep -E '<script[^>]+src="https?://|<link[^>]+rel="stylesheet"[^>]+href="https?://' index.html; then
+            echo 'Remote script or stylesheet dependency found.'
+            exit 1
+          fi
+      - name: Verify service worker cache entries
+        run: |
+          for file in secure-vault.css secure-vault.js offline-chart.js app-design-08.js; do
+            grep -q "$file" sw.js || { echo "$file is not cached"; exit 1; }
+          done

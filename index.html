@@ -6,17 +6,18 @@
   <title>多米的成长记录 🌱</title>
   <meta name="description" content="记录多米宝宝的成长数据和每日喝奶情况">
   <meta name="theme-color" content="#FF9EBB">
-  <meta name="app-version" content="2026.07.13-exact-design">
-  <link rel="canonical" href="https://duomi.933520.xyz/">
+  <meta name="app-version" content="2026.07.13-secure-offline-v2">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <link rel="canonical" href="https://mrlpf.github.io/duomi-growth/">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="成长记录">
-  <link rel="manifest" href="manifest.webmanifest?v=20260713">
+  <link rel="manifest" href="manifest.webmanifest?v=20260713secure2">
   <link rel="apple-touch-icon" href="icons/icon-192.svg">
   <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.svg">
   <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.svg">
-  <link rel="stylesheet" href="app-design.css?v=20260713">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="app-design.css?v=20260713secure2">
+  <link rel="stylesheet" href="secure-vault.css?v=20260713secure2">
 </head>
 <body>
   <div class="sparkle-container">
@@ -30,7 +31,10 @@
       <button class="nav-tab" data-page="list" onclick="navigateTo('list')">成长记录 📋</button>
       <button class="nav-tab" data-page="chart" onclick="navigateTo('chart')">成长曲线 📈</button>
     </div>
-    <div class="navbar-actions"><button class="settings-btn" title="设置宝宝信息" onclick="showChildInfoModal()">👶</button></div>
+    <div class="navbar-actions">
+      <button class="settings-btn" title="数据与安全" aria-label="数据与安全" onclick="SecureVault.openSecurityPanel()">🔐</button>
+      <button class="settings-btn" title="设置宝宝信息" aria-label="设置宝宝信息" onclick="showChildInfoModal()">👶</button>
+    </div>
   </nav>
   <div class="page-container">
     <section id="page-list" class="page-section">
@@ -82,14 +86,15 @@
     <div class="form-group"><label class="form-label" for="childBirthDate">🎂 出生日期</label><input type="date" id="childBirthDate" class="form-input" max=""><div class="error-msg" id="childBirthDateError"></div></div>
     <div class="btn-group"><button type="submit" class="btn btn-primary">保存 💾</button><button type="button" class="btn btn-secondary" onclick="closeChildInfoModal()" id="childInfoCancelBtn" style="display:none;">取消</button></div>
   </form></div></div>
-  <script src="app-design-01.js?v=20260713"></script>
-  <script src="app-design-02.js?v=20260713"></script>
-  <script src="app-design-03.js?v=20260713"></script>
-  <script src="app-design-04.js?v=20260713"></script>
-  <script src="app-design-05.js?v=20260713"></script>
-  <script src="app-design-06.js?v=20260713"></script>
-  <script src="app-design-07.js?v=20260713"></script>
-  <script src="app-design-08.js?v=20260713"></script>
-  <script src="chart-guard.js?v=20260713"></script>
+  <script src="app-design-01.js?v=20260713secure2"></script>
+  <script src="app-design-02.js?v=20260713secure2"></script>
+  <script src="app-design-03.js?v=20260713secure2"></script>
+  <script src="app-design-04.js?v=20260713secure2"></script>
+  <script src="app-design-05.js?v=20260713secure2"></script>
+  <script src="offline-chart.js?v=20260713secure2"></script>
+  <script src="app-design-06.js?v=20260713secure2"></script>
+  <script src="app-design-07.js?v=20260713secure2"></script>
+  <script src="secure-vault.js?v=20260713secure2"></script>
+  <script src="app-design-08.js?v=20260713secure2"></script>
 </body>
 </html>
