@@ -1,16 +1,27 @@
 {
-  "name": "多米成长记录",
-  "short_name": "多米成长",
-  "description": "离线优先、仅保存在本机的成长记录工具",
-  "lang": "zh-CN",
-  "start_url": "./",
+  "id": "./",
+  "name": "多米的成长记录",
+  "short_name": "成长记录",
+  "description": "记录多米宝宝的成长数据和每日喝奶情况",
+  "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f7f3ee",
-  "theme_color": "#8b5e3c",
+  "background_color": "#FFF9FA",
+  "theme_color": "#FF9EBB",
+  "lang": "zh-CN",
   "icons": [
-    {"src":"icons/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any"},
-    {"src":"icons/icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}
+    {
+      "src": "icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }
