@@ -1,0 +1,918 @@
+/* ========== 基础重置与全局样式 ========== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Comic Sans MS", "PingFang SC", "Microsoft YaHei", cursive, sans-serif;
+      background: #FFF9FA;
+      color: #5D4E60;
+      line-height: 1.6;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ========== 装饰性浮动元素 ========== */
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+    }
+
+    body::before {
+      width: 200px;
+      height: 200px;
+      background: #FFD700;
+      top: 10%;
+      right: -60px;
+      animation: floatBubble 8s ease-in-out infinite;
+    }
+
+    body::after {
+      width: 150px;
+      height: 150px;
+      background: #FF9EBB;
+      bottom: 15%;
+      left: -40px;
+      animation: floatBubble 10s ease-in-out infinite reverse;
+    }
+
+    /* 额外的星星装饰 */
+    .sparkle-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .sparkle {
+      position: absolute;
+      color: #FFD700;
+      opacity: 0;
+      animation: sparkleFloat 6s ease-in-out infinite;
+      font-size: 14px;
+    }
+
+    .sparkle:nth-child(1) { top: 20%; left: 10%; animation-delay: 0s; }
+    .sparkle:nth-child(2) { top: 40%; left: 85%; animation-delay: 2s; }
+    .sparkle:nth-child(3) { top: 60%; left: 25%; animation-delay: 4s; }
+    .sparkle:nth-child(4) { top: 15%; left: 60%; animation-delay: 1s; }
+    .sparkle:nth-child(5) { top: 75%; left: 70%; animation-delay: 3s; }
+
+    @keyframes floatBubble {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-20px) scale(1.05); }
+    }
+
+    @keyframes sparkleFloat {
+      0%, 100% { opacity: 0; transform: translateY(0) scale(0.5) rotate(0deg); }
+      50% { opacity: 0.4; transform: translateY(-15px) scale(1) rotate(180deg); }
+    }
+
+    @keyframes gentleBounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+
+    @keyframes toastBounce {
+      0% { transform: translateX(-50%) translateY(-20px); }
+      60% { transform: translateX(-50%) translateY(5px); }
+      100% { transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ========== 顶部导航栏 ========== */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(180deg, #FFF0F5 0%, #FFFFFF 100%);
+      border-bottom: none;
+      box-shadow: 0 2px 12px rgba(255, 158, 187, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 60px;
+    }
+
+    .navbar-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #FF9EBB;
+      white-space: nowrap;
+    }
+
+    .navbar-nav {
+      display: flex;
+      gap: 4px;
+    }
+
+    .nav-tab {
+      padding: 8px 20px;
+      border: none;
+      background: none;
+      font-size: 15px;
+      color: #A99BAA;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.3s ease, background 0.3s ease, border-radius 0.3s ease;
+      font-family: inherit;
+      border-radius: 24px;
+    }
+
+    .nav-tab:hover {
+      color: #FF9EBB;
+      background: rgba(255, 158, 187, 0.08);
+    }
+
+    .nav-tab.active {
+      color: #FFFFFF;
+      font-weight: 600;
+      background: #FF9EBB;
+    }
+
+    .nav-tab.active::after {
+      content: '';
+      display: none;
+    }
+
+    .navbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #A99BAA;
+      font-size: 20px;
+      transition: background 0.2s, color 0.2s, transform 0.2s;
+    }
+
+    .settings-btn:hover {
+      background: rgba(255, 158, 187, 0.1);
+      color: #FF9EBB;
+      transform: scale(1.1);
+    }
+
+    /* ========== 页面内容区 ========== */
+    .page-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-section {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .page-section.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* ========== 卡片样式 ========== */
+    .card {
+      background: #FFFFFF;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(255, 158, 187, 0.1);
+      border: 1px solid #F0E0E8;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #5D4E60;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title::before {
+      content: '';
+      display: none;
+    }
+
+    /* ========== 表单样式 ========== */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #5D4E60;
+      margin-bottom: 6px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #F0E0E8;
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #5D4E60;
+      background: #FFFFFF;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: #FF9EBB;
+      box-shadow: 0 0 0 3px rgba(255, 158, 187, 0.15);
+    }
+
+    .form-input.error {
+      border-color: #FF6B8A;
+      box-shadow: 0 0 0 3px rgba(255, 107, 138, 0.1);
+    }
+
+    .input-unit {
+      position: absolute;
+      right: 14px;
+      font-size: 14px;
+      color: #A99BAA;
+      pointer-events: none;
+    }
+
+    .form-input.has-unit {
+      padding-right: 40px;
+    }
+
+    .error-msg {
+      color: #FF6B8A;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .error-msg.show {
+      display: block;
+    }
+
+    /* ========== 按钮样式 ========== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 24px;
+      border-radius: 24px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease, transform 0.15s ease;
+      border: none;
+      font-family: inherit;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      transform: scale(1.03);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: #FF9EBB;
+      color: #FFFFFF;
+    }
+
+    .btn-primary:hover {
+      background: #FF8AA3;
+      box-shadow: 0 4px 12px rgba(255, 158, 187, 0.4);
+    }
+
+    .btn-primary:active {
+      background: #FF7A93;
+    }
+
+    .btn-secondary {
+      background: #FFFFFF;
+      color: #A99BAA;
+      border: 1px solid #F0E0E8;
+    }
+
+    .btn-secondary:hover {
+      background: #FFF0F5;
+      border-color: #FF9EBB;
+      color: #FF9EBB;
+    }
+
+    .btn-sm {
+      padding: 5px 14px;
+      font-size: 13px;
+      border-radius: 16px;
+    }
+
+    .btn-blue {
+      background: #87CEEB;
+      color: #FFFFFF;
+      border: none;
+    }
+
+    .btn-blue:hover {
+      background: #6BC5E0;
+      box-shadow: 0 4px 12px rgba(135, 206, 235, 0.4);
+    }
+
+    .btn-red {
+      background: #FFFFFF;
+      color: #FF6B8A;
+      border: 1px solid #FF6B8A;
+    }
+
+    .btn-red:hover {
+      background: #FFF0F5;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    /* ========== 表格样式 ========== */
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .data-table thead {
+      background: #FFF0F5;
+    }
+
+    .data-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: #5D4E60;
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #F0E0E8;
+      color: #5D4E60;
+    }
+
+    .data-table tbody tr:hover {
+      background: #FFF9FA;
+    }
+
+    .data-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ========== 分页 ========== */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .page-btn {
+      min-width: 36px;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid #F0E0E8;
+      background: #FFFFFF;
+      color: #A99BAA;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .page-btn:hover:not(.active):not(:disabled) {
+      border-color: #FF9EBB;
+      color: #FF9EBB;
+      transform: scale(1.05);
+    }
+
+    .page-btn.active {
+      background: #FF9EBB;
+      color: #FFFFFF;
+      border-color: #FF9EBB;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ========== 空状态 ========== */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #A99BAA;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.7;
+    }
+
+    .empty-state-text {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+
+    .empty-state-btn {
+      display: inline-block;
+      padding: 10px 24px;
+      background: #FF9EBB;
+      color: #FFFFFF;
+      border-radius: 24px;
+      text-decoration: none;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .empty-state-btn:hover {
+      background: #FF8AA3;
+      transform: scale(1.03);
+    }
+
+    /* ========== 模态框 ========== */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 158, 187, 0.3);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 32px;
+      width: 90%;
+      max-width: 460px;
+      box-shadow: 0 20px 60px rgba(255, 158, 187, 0.2);
+      transform: translateY(20px);
+      transition: transform 0.3s;
+    }
+
+    .modal-overlay.show .modal {
+      transform: translateY(0);
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      color: #5D4E60;
+    }
+
+    /* ========== Toast 提示 ========== */
+    .toast {
+      position: fixed;
+      top: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #FF9EBB;
+      color: #FFFFFF;
+      padding: 12px 28px;
+      border-radius: 24px;
+      font-size: 15px;
+      font-weight: 500;
+      z-index: 300;
+      box-shadow: 0 4px 16px rgba(255, 158, 187, 0.4);
+      transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      top: 80px;
+      animation: toastBounce 0.4s ease;
+    }
+
+    /* ========== 图表区域 ========== */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      min-height: 400px;
+    }
+
+    .chart-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 400px;
+    }
+
+    .chart-canvas-wrapper canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* ========== 欢迎弹窗图标 ========== */
+    .welcome-icon {
+      font-size: 56px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    /* ========== 响应式 ========== */
+    @media (max-width: 768px) {
+      .navbar {
+        padding: 0 12px;
+        height: auto;
+        min-height: 60px;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+
+      .navbar-title {
+        font-size: 16px;
+      }
+
+      .nav-tab {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .btn-group {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 10px 8px;
+        font-size: 13px;
+      }
+    }
+
+    /* ========== 滚动条美化 ========== */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #FFD0DC;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #FF9EBB;
+    }
+
+    /* ========== SVG 图标（内联） ========== */
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ========== 发育水平百分比标签 ========== */
+    .pct-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .pct-good {
+      background: #E8F8EA;
+      color: #2E7D32;
+    }
+
+    .pct-normal {
+      background: #FFF8E1;
+      color: #F57F17;
+    }
+
+    .pct-low {
+      background: #FFF0F0;
+      color: #E53935;
+    }
+
+    .pct-na {
+      color: #A99BAA;
+    }
+
+    /* ========== 每日喝奶记录 ========== */
+    .milk-summary-card {
+      margin-bottom: 16px;
+    }
+
+    .milk-summary-inner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      background: linear-gradient(135deg, #FFF0F5, #F0F8FF);
+      border-radius: 16px;
+      border: 1px solid #F0E0E8;
+    }
+
+    .milk-summary-icon {
+      font-size: 40px;
+    }
+
+    .milk-summary-info {
+      flex: 1;
+    }
+
+    .milk-summary-label {
+      font-size: 13px;
+      color: #A99BAA;
+      margin-bottom: 4px;
+    }
+
+    .milk-summary-total {
+      font-size: 32px;
+      font-weight: 700;
+      color: #FF9EBB;
+      line-height: 1.2;
+    }
+
+    .milk-summary-unit {
+      font-size: 14px;
+      font-weight: 400;
+      color: #A99BAA;
+    }
+
+    .milk-summary-count {
+      font-size: 14px;
+      color: #A99BAA;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 8px 16px;
+      border-radius: 12px;
+    }
+
+    .milk-date-filter {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .milk-date-filter .form-label {
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
+
+    .milk-date-input {
+      max-width: 200px;
+    }
+
+    .milk-record-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .milk-record-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: #FFFAFB;
+      border-radius: 14px;
+      border: 1px solid #F8E8EF;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .milk-record-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(255, 158, 187, 0.15);
+    }
+
+    .milk-record-left {
+      flex: 0 0 auto;
+    }
+
+    .milk-record-time {
+      font-size: 15px;
+      font-weight: 500;
+      color: #5D4E60;
+    }
+
+    .milk-record-center {
+      flex: 1;
+      text-align: center;
+    }
+
+    .milk-record-amount {
+      font-size: 22px;
+      font-weight: 700;
+      color: #FF9EBB;
+    }
+
+    .milk-record-unit {
+      font-size: 13px;
+      font-weight: 400;
+      color: #A99BAA;
+    }
+
+    .milk-record-right {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .milk-record-running {
+      font-size: 12px;
+      color: #87CEEB;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 600px) {
+      .milk-record-item {
+        flex-wrap: wrap;
+      }
+      .milk-record-right {
+        width: 100%;
+        justify-content: flex-end;
+        padding-top: 4px;
+        border-top: 1px dashed #F0E0E8;
+      }
+    }
+
+    /* 奶类型选择 */
+    .milk-type-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    .milk-type-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border-radius: 24px;
+      border: 2px solid #F0E0E8;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .milk-type-option:hover {
+      border-color: #FF9EBB;
+    }
+
+    .milk-type-option input[type="radio"] {
+      display: none;
+    }
+
+    .milk-type-option:has(input:checked) {
+      border-color: #FF9EBB;
+      background: #FFF0F5;
+      box-shadow: 0 0 0 2px rgba(255, 158, 187, 0.2);
+    }
+
+    .milk-type-option input[type="radio"]:checked + .milk-type-option {
+      border-color: #FF9EBB;
+      background: #FFF0F5;
+    }
+
+    /* 奶类型标签 */
+    .milk-record-type {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 2px;
+    }
+
+    .type-breast {
+      background: #FFF0F5;
+      color: #FF9EBB;
+    }
+
+    .type-formula {
+      background: #F0F8FF;
+      color: #87CEEB;
+    }
+
+    /* 奶类型分类汇总 */
+    .milk-type-summary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 12px;
+      padding: 14px 20px;
+      background: rgba(255, 240, 245, 0.4);
+      border-radius: 14px;
+    }
+
+    .milk-type-summary-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .milk-type-summary-icon {
+      font-size: 18px;
+    }
+
+    .milk-type-summary-text {
+      font-size: 13px;
+      color: #A99BAA;
+    }
+
+    .milk-type-summary-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: #5D4E60;
+    }
+
+    .milk-type-summary-divider {
+      width: 1px;
+      height: 24px;
+      background: #F0E0E8;
+    }
