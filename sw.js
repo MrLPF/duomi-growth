@@ -1,5 +1,5 @@
-const CACHE = 'duomi-growth-secure-offline-v7';
-const VERSION = '20260713secure2';
+const CACHE = 'duomi-growth-original-archive-v8';
+const VERSION = '20260713archive3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -21,23 +21,36 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', function (event) {
-  event.waitUntil(caches.open(CACHE).then(function (cache) {
-    return cache.addAll(APP_SHELL);
-  }));
+  event.waitUntil(
+    caches.open(CACHE).then(function (cache) {
+      return cache.addAll(APP_SHELL);
+    })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (key) {
-        return key !== CACHE;
-      }).map(function (key) {
-        return caches.delete(key);
-      }));
-    })
+    caches.keys()
+      .then(function (keys) {
+        return Promise.all(keys.filter(function (key) {
+          return key !== CACHE;
+        }).map(function (key) {
+          return caches.delete(key);
+        }));
+      })
+      .then(function () {
+        return self.clients.claim();
+      })
+      .then(function () {
+        return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      })
+      .then(function (clients) {
+        clients.forEach(function (client) {
+          client.postMessage({ type: 'DUOMI_VERSION_READY', version: VERSION });
+        });
+      })
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', function (event) {
@@ -71,16 +84,17 @@ self.addEventListener('fetch', function (event) {
   }
 
   event.respondWith(
-    caches.match(request).then(function (cached) {
-      if (cached) return cached;
-      return fetch(request).then(function (response) {
+    fetch(request, { cache: 'no-store' })
+      .then(function (response) {
         if (response.ok) {
           caches.open(CACHE).then(function (cache) {
             cache.put(request, response.clone());
           });
         }
         return response;
-      });
-    })
+      })
+      .catch(function () {
+        return caches.match(request);
+      })
   );
 });
