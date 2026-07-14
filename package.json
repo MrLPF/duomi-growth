@@ -1,0 +1,13 @@
+{
+  "name": "duomi-growth",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Static offline baby-growth PWA with a local encrypted vault",
+  "scripts": {
+    "test": "node tests/static-security.mjs && node tests/vault-integration.mjs"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "6.2.4",
+    "jsdom": "26.1.0"
+  }
+}

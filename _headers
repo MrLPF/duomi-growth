@@ -3,16 +3,31 @@
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self'; style-src-attr 'none'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; media-src 'none'; frame-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 
-/sw.js
-  Cache-Control: no-cache, no-store, must-revalidate
-
-/manifest.json
+/
   Cache-Control: no-cache, no-store, must-revalidate
 
 /index.html
   Cache-Control: no-cache, no-store, must-revalidate
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/app.js
+  Cache-Control: no-cache, must-revalidate
+
+/secure-vault.js
+  Cache-Control: no-cache, must-revalidate
+
+/styles.css
+  Cache-Control: no-cache, must-revalidate
+
+/secure-vault.css
+  Cache-Control: no-cache, must-revalidate
+
+/manifest.json
+  Cache-Control: no-cache, must-revalidate
 
 /chart.umd.min.js
   Cache-Control: public, max-age=31536000, immutable
