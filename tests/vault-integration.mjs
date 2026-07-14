@@ -15,6 +15,47 @@ const NEXT_PASSWORD = 'updated local password 2026';
 const RESET_PASSWORD = 'recovered local password 2026';
 const FINAL_PASSWORD = 'final local password 2026';
 const TODAY = new Date().toISOString().slice(0, 10);
+const REJECTED_AMBIGUOUS_RECOVERY_CODE = 'IIII-IIII-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA';
+const FIXED_RECOVERY_CODE = 'IABC-DEFG-HJKL-MNPQ-OXYZ-2345-67AB-CDEF';
+
+function decodeBase32Fixture(value) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const normalized = value.replace(/-/g, '');
+  let bits = 0;
+  let buffer = 0;
+  const bytes = [];
+  for (const character of normalized) {
+    buffer = (buffer << 5) | alphabet.indexOf(character);
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((buffer >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Uint8Array.from(bytes);
+}
+
+function createRecoveryCryptoFixture() {
+  const rejectedRecoveryBytes = decodeBase32Fixture(REJECTED_AMBIGUOUS_RECOVERY_CODE);
+  const recoveryBytes = decodeBase32Fixture(FIXED_RECOVERY_CODE);
+  const recoverySequence = [rejectedRecoveryBytes, recoveryBytes];
+  const challengeIndices = [0, 4];
+  return {
+    subtle: webcrypto.subtle,
+    randomUUID: () => webcrypto.randomUUID(),
+    getRandomValues(array) {
+      if (array.length === recoveryBytes.length && recoverySequence.length) {
+        array.set(recoverySequence.shift());
+        return array;
+      }
+      if (!recoverySequence.length && array.length === 1 && challengeIndices.length) {
+        array[0] = challengeIndices.shift();
+        return array;
+      }
+      return webcrypto.getRandomValues(array);
+    }
+  };
+}
 
 function wait(milliseconds = 0) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
@@ -129,7 +170,7 @@ async function createLegacySecureDatabase(indexedDB, password, clearVault) {
   });
 }
 
-async function createEnvironment({ indexedDB = new IDBFactory(), seedLocalStorage } = {}) {
+async function createEnvironment({ indexedDB = new IDBFactory(), seedLocalStorage, cryptoProvider = webcrypto } = {}) {
   const dom = new JSDOM(html, {
     url: 'https://local-test.invalid/',
     runScripts: 'outside-only',
@@ -139,7 +180,7 @@ async function createEnvironment({ indexedDB = new IDBFactory(), seedLocalStorag
   const downloads = [];
   const consoleErrors = [];
 
-  Object.defineProperty(window, 'crypto', { configurable: true, value: webcrypto });
+  Object.defineProperty(window, 'crypto', { configurable: true, value: cryptoProvider });
   Object.defineProperty(window, 'indexedDB', { configurable: true, value: indexedDB });
   Object.defineProperty(window, 'structuredClone', { configurable: true, value: structuredClone });
   Object.defineProperty(window, 'TextEncoder', { configurable: true, value: TextEncoder });
@@ -178,7 +219,7 @@ async function createEnvironment({ indexedDB = new IDBFactory(), seedLocalStorag
   return { dom, window, indexedDB, downloads, consoleErrors };
 }
 
-async function confirmDisplayedRecoveryCode(environment, { exerciseValidation = false } = {}) {
+async function confirmDisplayedRecoveryCode(environment, { exerciseValidation = false, useFullCode = false } = {}) {
   const { window } = environment;
   await waitFor(() => !window.document.querySelector('#vaultRecoveryOverlay').hidden, 'Recovery confirmation did not open');
   const code = window.document.querySelector('#vaultRecoveryCodeDisplay').textContent;
@@ -187,12 +228,23 @@ async function confirmDisplayedRecoveryCode(environment, { exerciseValidation = 
   const inputs = Array.from(window.document.querySelectorAll('#vaultRecoveryGroupFields input'));
   const saved = window.document.querySelector('#vaultRecoverySaved');
   const feedback = window.document.querySelector('#vaultRecoveryConfirmMessage');
+  const fullCodeInput = window.document.querySelector('#vaultRecoveryFullCode');
   assert.equal(groups.length, 8);
   assert.equal(groups.join('').length, 32);
   assert.equal(form.noValidate, true);
 
-  for (const input of inputs) {
-    setValue(window, `input[data-group-index="${input.dataset.groupIndex}"]`, groups[Number(input.dataset.groupIndex)]);
+  if (exerciseValidation) {
+    assert.equal(code, FIXED_RECOVERY_CODE);
+    assert.deepEqual(inputs.map((input) => Number(input.dataset.groupIndex)), [0, 4]);
+  }
+
+  if (useFullCode) {
+    const fullWidthCode = code.toLowerCase().replace(/[a-z2-7]/g, (character) => String.fromCharCode(character.charCodeAt(0) + 0xfee0));
+    setValue(window, '#vaultRecoveryFullCode', fullWidthCode);
+  } else {
+    for (const input of inputs) {
+      setValue(window, `input[data-group-index="${input.dataset.groupIndex}"]`, groups[Number(input.dataset.groupIndex)]);
+    }
   }
 
   if (exerciseValidation) {
@@ -210,9 +262,48 @@ async function confirmDisplayedRecoveryCode(environment, { exerciseValidation = 
     await waitFor(() => feedback.textContent.includes('请重新核对第'), 'Wrong recovery-group feedback was not shown');
     assert.equal(firstInput.getAttribute('aria-invalid'), 'true');
 
+    for (const input of inputs) {
+      setValue(window, `input[data-group-index="${input.dataset.groupIndex}"]`, groups[Number(input.dataset.groupIndex)]);
+    }
+    const canonical = code.replace(/-/g, '');
+    const wrongCanonical = (canonical[0] === 'A' ? 'B' : 'A') + canonical.slice(1);
+    setValue(window, '#vaultRecoveryFullCode', wrongCanonical.match(/.{4}/g).join('-'));
+    requestSubmit(window, '#vaultRecoveryConfirmForm');
+    await waitFor(() => feedback.textContent.includes('完整恢复码不匹配'), 'Wrong full recovery code was not rejected');
+    assert.equal(fullCodeInput.getAttribute('aria-invalid'), 'true');
+    setValue(window, '#vaultRecoveryFullCode', '');
+
     const fullWidth = expected.replace(/[A-Z2-7]/g, (character) => String.fromCharCode(character.charCodeAt(0) + 0xfee0));
-    setValue(window, `input[data-group-index="${firstInput.dataset.groupIndex}"]`, fullWidth);
-    assert.equal(firstInput.value, expected, 'Full-width recovery characters were not normalized');
+    firstInput.dispatchEvent(new window.CompositionEvent('compositionstart', { bubbles: true }));
+    firstInput.value = fullWidth;
+    const composingInput = new window.Event('input', { bubbles: true });
+    Object.defineProperty(composingInput, 'isComposing', { value: true });
+    firstInput.dispatchEvent(composingInput);
+    assert.equal(firstInput.value, fullWidth, 'IME composition was modified before completion');
+    firstInput.dispatchEvent(new window.CompositionEvent('compositionend', { bubbles: true }));
+    for (const input of inputs.slice(1)) {
+      setValue(window, `input[data-group-index="${input.dataset.groupIndex}"]`, groups[Number(input.dataset.groupIndex)]);
+    }
+    saved.checked = false;
+    saved.dispatchEvent(new window.Event('change', { bubbles: true }));
+    requestSubmit(window, '#vaultRecoveryConfirmForm');
+    await waitFor(() => feedback.textContent.includes('请勾选'), 'Full-width recovery group was not accepted after IME composition');
+    assert.equal(feedback.textContent.includes('请重新核对'), false, 'Full-width recovery group was treated as incorrect');
+
+    inputs.forEach((input) => { input.value = ''; });
+    const pasteEvent = new window.Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(pasteEvent, 'clipboardData', {
+      value: { getData: (type) => type === 'text/plain' ? code : '' }
+    });
+    firstInput.dispatchEvent(pasteEvent);
+    assert.equal(pasteEvent.defaultPrevented, true, 'Full recovery-code paste was not intercepted');
+    assert.equal(fullCodeInput.value, code);
+    fullCodeInput.value = '';
+    for (const input of inputs) {
+      assert.equal(input.value, groups[Number(input.dataset.groupIndex)], 'Full-code paste did not fill the requested group');
+      const visualAlias = input.value.replace(/[IL]/g, '1').replace(/O/g, '0');
+      setValue(window, `input[data-group-index="${input.dataset.groupIndex}"]`, visualAlias);
+    }
   }
 
   saved.checked = true;
@@ -230,6 +321,9 @@ async function createAccount(environment, { username = '测试用户', password 
   const recoveryCode = await confirmDisplayedRecoveryCode(environment, { exerciseValidation: exerciseRecoveryValidation });
   await waitFor(() => !window.document.querySelector('#vaultBackupPrompt').hidden, 'Backup prompt did not open');
   assert.equal(window.document.querySelector('#vaultRecoveryOverlay').hidden, true);
+  assert.equal(window.document.querySelector('#vaultRecoveryCodeDisplay').textContent, '');
+  assert.equal(window.document.querySelector('#vaultRecoveryFullCode').value, '');
+  assert.equal(window.document.querySelector('#vaultRecoveryGroupFields').children.length, 0);
   assert.equal(window.document.querySelector('#vaultGate').hidden, true);
   assert.equal(window.document.body.classList.contains('secure-locked'), false);
   assert.equal(window.DuomiVault.isUnlocked(), true);
@@ -328,8 +422,10 @@ async function restoreBackup(environment, backupText, mode, credential) {
 
 async function run() {
   const sharedIndexedDB = new IDBFactory();
-  const primary = await createEnvironment({ indexedDB: sharedIndexedDB });
+  const primary = await createEnvironment({ indexedDB: sharedIndexedDB, cryptoProvider: createRecoveryCryptoFixture() });
   const recoveryCode = await createAccount(primary, { exerciseRecoveryValidation: true });
+  const recoveryVisualAlias = recoveryCode.replace(/[IL]/g, '1').replace(/O/g, '0');
+  assert.notEqual(recoveryVisualAlias, recoveryCode);
 
   const initializationFailure = await createEnvironment();
   const healthyInitializer = initializationFailure.window.initializeGrowthApp;
@@ -425,7 +521,7 @@ async function run() {
 
   await primary.window.DuomiVault.lock();
   click(primary.window, '#vaultForgotPassword');
-  setValue(primary.window, '#vaultRecoveryCode', recoveryCode);
+  setValue(primary.window, '#vaultRecoveryCode', recoveryVisualAlias);
   setValue(primary.window, '#vaultRecoveryPassword', RESET_PASSWORD);
   setValue(primary.window, '#vaultRecoveryConfirm', RESET_PASSWORD);
   submit(primary.window, '#vaultRecoveryForm');
@@ -438,7 +534,7 @@ async function run() {
   const recoveryWrapBefore = (await readStore(sharedIndexedDB, 'account')).recoveryWrappedKey.ciphertext;
   primary.window.DuomiVault.openSecurityMenu();
   click(primary.window, '#vaultRegenerateRecovery');
-  const regeneratedRecoveryCode = await confirmDisplayedRecoveryCode(primary);
+  const regeneratedRecoveryCode = await confirmDisplayedRecoveryCode(primary, { useFullCode: true });
   await dismissNotice(primary.window, '恢复码已更新');
   const recoveryWrapAfter = (await readStore(sharedIndexedDB, 'account')).recoveryWrappedKey.ciphertext;
   assert.notEqual(recoveryWrapAfter, recoveryWrapBefore);
@@ -446,7 +542,7 @@ async function run() {
 
   await primary.window.DuomiVault.lock();
   click(primary.window, '#vaultForgotPassword');
-  setValue(primary.window, '#vaultRecoveryCode', recoveryCode);
+  setValue(primary.window, '#vaultRecoveryCode', recoveryVisualAlias);
   setValue(primary.window, '#vaultRecoveryPassword', FINAL_PASSWORD);
   setValue(primary.window, '#vaultRecoveryConfirm', FINAL_PASSWORD);
   submit(primary.window, '#vaultRecoveryForm');
@@ -460,7 +556,7 @@ async function run() {
   const passwordRestore = await createEnvironment();
   await restoreBackup(passwordRestore, backupText, 'password', PASSWORD);
   const recoveryRestore = await createEnvironment();
-  await restoreBackup(recoveryRestore, backupText, 'recovery', recoveryCode);
+  await restoreBackup(recoveryRestore, backupText, 'recovery', recoveryVisualAlias);
 
   const corruptRestore = await createEnvironment();
   const corrupt = JSON.parse(backupText);

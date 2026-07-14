@@ -97,6 +97,7 @@
   }
 
   const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const MAX_AMBIGUOUS_RECOVERY_ONES = 6;
 
   function base32Encode(bytes) {
     let bits = 0;
@@ -116,6 +117,56 @@
 
   function normalizeRecoveryCode(value) {
     return String(value || '').normalize('NFKC').toUpperCase().replace(/[^A-Z2-7]/g, '');
+  }
+
+  function normalizeRecoveryConfirmationText(value) {
+    return String(value || '').normalize('NFKC').toUpperCase().replace(/[\s\-\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '');
+  }
+
+  function generateRecoveryCode() {
+    for (let attempt = 0; attempt < 128; attempt += 1) {
+      const code = base32Encode(randomBytes(20));
+      const ambiguousCharacters = Array.from(code).filter(function (character) {
+        return character === 'I' || character === 'L';
+      }).length;
+      if (ambiguousCharacters <= MAX_AMBIGUOUS_RECOVERY_ONES) return code;
+    }
+    throw new Error('无法生成恢复码，请重试');
+  }
+
+  function recoveryConfirmationMatches(value, expected) {
+    const entered = normalizeRecoveryConfirmationText(value);
+    if (entered.length !== expected.length) return false;
+    if (Array.from(entered).filter(function (character) { return character === '1'; }).length > MAX_AMBIGUOUS_RECOVERY_ONES) return false;
+    return Array.from(entered).every(function (character, index) {
+      const target = expected[index];
+      return character === target
+        || (character === '0' && target === 'O')
+        || (character === '1' && (target === 'I' || target === 'L'));
+    });
+  }
+
+  function recoveryCodeCandidates(value) {
+    const entered = normalizeRecoveryConfirmationText(value);
+    if (entered.length !== 32) throw new Error('恢复码应为 8 组、共 32 个字符');
+    let candidates = [''];
+    let ambiguousOnes = 0;
+    for (const character of entered) {
+      let options;
+      if (BASE32_ALPHABET.includes(character)) options = [character];
+      else if (character === '0') options = ['O'];
+      else if (character === '1') {
+        ambiguousOnes += 1;
+        if (ambiguousOnes > MAX_AMBIGUOUS_RECOVERY_ONES) throw new Error('恢复码中有过多无法区分的数字 1，请重新复制原始恢复码');
+        options = ['I', 'L'];
+      } else {
+        throw new Error('恢复码包含无效字符，请核对字母 I、O、L 和数字 2–7');
+      }
+      candidates = candidates.flatMap(function (prefix) {
+        return options.map(function (option) { return prefix + option; });
+      });
+    }
+    return candidates;
   }
 
   function base32Decode(value) {
@@ -394,8 +445,16 @@
   async function unwrapWithRecovery(accountRecord, code) {
     const kdf = accountRecord.recoveryKdf;
     if (!kdf || kdf.name !== 'HKDF') throw new Error('恢复码派生参数无效');
-    const key = await deriveRecoveryKey(base32Decode(code), fromBase64(kdf.salt), kdf.info);
-    return decryptBytes(accountRecord.recoveryWrappedKey, key, wrappingAad(accountRecord.accountId, 'recovery'));
+    const candidates = recoveryCodeCandidates(code);
+    for (const candidate of candidates) {
+      try {
+        const key = await deriveRecoveryKey(base32Decode(candidate), fromBase64(kdf.salt), kdf.info);
+        return await decryptBytes(accountRecord.recoveryWrappedKey, key, wrappingAad(accountRecord.accountId, 'recovery'));
+      } catch (error) {
+        // Try the other visual interpretation of digit 1 (I or L).
+      }
+    }
+    throw new Error('恢复码错误，或本机保险箱已损坏');
   }
 
   async function encryptVault(value, key, accountId, revision) {
@@ -724,6 +783,20 @@
     const gate = element('div', { id: 'vaultGate', className: 'vault-gate', attributes: { role: 'dialog', 'aria-modal': 'true', 'aria-label': '本机加密账户' } }, gateCard);
 
     const recoveryCode = element('code', { id: 'vaultRecoveryCodeDisplay', className: 'vault-recovery-code' });
+    const recoveryFullCode = element('input', {
+      id: 'vaultRecoveryFullCode',
+      className: 'vault-input vault-monospace',
+      type: 'text',
+      maxLength: 64,
+      autocomplete: 'off',
+      placeholder: 'XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX',
+      attributes: {
+        autocapitalize: 'characters',
+        autocorrect: 'off',
+        spellcheck: 'false',
+        'aria-describedby': 'vaultRecoveryConfirmMessage'
+      }
+    });
     const recoveryConfirmForm = element('form', {
       id: 'vaultRecoveryConfirmForm',
       className: 'vault-dialog-card',
@@ -732,6 +805,8 @@
       element('h2', { id: 'vaultRecoveryTitle', text: '保存恢复码' }),
       element('p', { className: 'vault-note', text: '恢复码只显示在这里，不会上传或写入磁盘。请单独抄写或保存在安全位置。' }),
       recoveryCode,
+      field('推荐：粘贴完整 8 组恢复码', recoveryFullCode),
+      element('p', { className: 'vault-note', text: '也可以只填写下面随机抽取的两组。字母 I、O、L 容易与数字 1、0 混淆，页面会兼容识别。' }),
       element('div', { id: 'vaultRecoveryGroupFields', className: 'vault-confirm-groups' }),
       element('label', { className: 'vault-check-row' },
         element('input', { id: 'vaultRecoverySaved', type: 'checkbox', required: true }),
@@ -885,6 +960,14 @@
     });
     ui.setupForm.addEventListener('submit', beginSetup);
     document.getElementById('vaultSetupRestore').addEventListener('click', function () { showRestoreMode('setup'); });
+    document.getElementById('vaultRecoveryFullCode').addEventListener('input', function (event) {
+      if (event.isComposing) return;
+      this.classList.remove('vault-input-error');
+      this.removeAttribute('aria-invalid');
+      const feedback = document.getElementById('vaultRecoveryConfirmMessage');
+      feedback.textContent = '';
+      feedback.classList.remove('vault-error');
+    });
     document.getElementById('vaultRecoverySaved').addEventListener('change', function () {
       if (!this.checked) return;
       this.removeAttribute('aria-invalid');
@@ -950,7 +1033,7 @@
       const keyBytes = randomBytes(32);
       const key = await importDataKey(keyBytes);
       const passwordWrap = await createPasswordWrap(password, accountId, keyBytes);
-      const recoveryRaw = base32Encode(randomBytes(20));
+      const recoveryRaw = generateRecoveryCode();
       const recoveryWrap = await createRecoveryWrap(recoveryRaw, accountId, keyBytes);
       const now = new Date().toISOString();
       const accountRecord = {
@@ -1250,6 +1333,7 @@
     ui.backupPrompt.hidden = true;
     pendingBackup = null;
     document.getElementById('vaultRecoveryCodeDisplay').textContent = '';
+    document.getElementById('vaultRecoveryFullCode').value = '';
     document.getElementById('vaultRecoveryGroupFields').replaceChildren();
     document.getElementById('vaultActionFields').replaceChildren();
     document.getElementById('vaultActionMessage').textContent = '';
@@ -1327,6 +1411,7 @@
 
   function confirmRecoveryCode(code, title, allowCancel) {
     const groups = formatRecoveryCode(code).split('-');
+    const canonicalCode = groups.join('');
     let first = randomBytes(1)[0] % groups.length;
     let second = randomBytes(1)[0] % groups.length;
     if (second === first) second = (second + 3) % groups.length;
@@ -1338,25 +1423,52 @@
     indices.forEach(function (index) {
       const input = element('input', {
         className: 'vault-input vault-monospace', type: 'text', required: true,
-        maxLength: 4,
+        maxLength: 64,
         autocomplete: 'off',
         attributes: {
           'data-group-index': String(index),
           autocapitalize: 'characters',
+          autocorrect: 'off',
           spellcheck: 'false'
         }
       });
-      input.addEventListener('input', function () {
-        const normalized = normalizeRecoveryCode(input.value).slice(0, 4);
-        if (input.value !== normalized) input.value = normalized;
+      input.addEventListener('input', function (event) {
+        if (event.isComposing) return;
         input.classList.remove('vault-input-error');
         input.removeAttribute('aria-invalid');
         const feedback = document.getElementById('vaultRecoveryConfirmMessage');
         feedback.textContent = '';
         feedback.classList.remove('vault-error');
       });
+      input.addEventListener('paste', function (event) {
+        const pasted = event.clipboardData && event.clipboardData.getData('text/plain');
+        const compact = normalizeRecoveryConfirmationText(pasted);
+        if (compact.length !== canonicalCode.length) return;
+        event.preventDefault();
+        const fullCodeInput = document.getElementById('vaultRecoveryFullCode');
+        fullCodeInput.value = pasted;
+        const feedback = document.getElementById('vaultRecoveryConfirmMessage');
+        if (recoveryConfirmationMatches(pasted, canonicalCode)) {
+          Array.from(fields.querySelectorAll('input[data-group-index]')).forEach(function (challengeInput) {
+            challengeInput.value = groups[Number(challengeInput.dataset.groupIndex)];
+            challengeInput.classList.remove('vault-input-error');
+            challengeInput.removeAttribute('aria-invalid');
+          });
+          feedback.textContent = '完整 8 组恢复码已匹配。';
+          feedback.classList.remove('vault-error');
+        } else {
+          fullCodeInput.classList.add('vault-input-error');
+          fullCodeInput.setAttribute('aria-invalid', 'true');
+          feedback.textContent = '粘贴的完整恢复码与本次生成的恢复码不一致。';
+          feedback.classList.add('vault-error');
+        }
+      });
       fields.appendChild(field('请输入第 ' + (index + 1) + ' 组', input));
     });
+    const fullCodeInput = document.getElementById('vaultRecoveryFullCode');
+    fullCodeInput.value = '';
+    fullCodeInput.classList.remove('vault-input-error');
+    fullCodeInput.removeAttribute('aria-invalid');
     const savedCheckbox = document.getElementById('vaultRecoverySaved');
     savedCheckbox.checked = false;
     savedCheckbox.removeAttribute('aria-invalid');
@@ -1376,6 +1488,10 @@
         ui.recoveryConfirmForm.removeEventListener('submit', submitHandler);
         cancel.removeEventListener('click', cancelHandler);
         ui.recoveryOverlay.hidden = true;
+        document.getElementById('vaultRecoveryCodeDisplay').textContent = '';
+        fullCodeInput.value = '';
+        fields.replaceChildren();
+        savedCheckbox.checked = false;
         cancelRecoveryDialog = null;
         resolve(result);
       }
@@ -1383,25 +1499,39 @@
         event.preventDefault();
         const inputs = fields.querySelectorAll('input[data-group-index]');
         const incorrect = Array.from(inputs).filter(function (input) {
-          return normalizeRecoveryCode(input.value) !== groups[Number(input.dataset.groupIndex)];
+          return !recoveryConfirmationMatches(input.value, groups[Number(input.dataset.groupIndex)]);
         });
+        const pastedIntoGroup = Array.from(inputs).map(function (input) {
+          return normalizeRecoveryConfirmationText(input.value);
+        }).find(function (value) { return value.length === canonicalCode.length; }) || '';
+        const fullAttempt = fullCodeInput.value || pastedIntoGroup;
+        const fullAttempted = normalizeRecoveryConfirmationText(fullAttempt).length > 0;
+        const fullCorrect = fullAttempted && recoveryConfirmationMatches(fullAttempt, canonicalCode);
+        const groupsCorrect = incorrect.length === 0;
+        const recoveryCodeConfirmed = fullAttempted ? fullCorrect : groupsCorrect;
         inputs.forEach(function (input) {
-          const invalid = incorrect.includes(input);
+          const invalid = !fullAttempted && incorrect.includes(input);
           input.classList.toggle('vault-input-error', invalid);
           if (invalid) input.setAttribute('aria-invalid', 'true');
           else input.removeAttribute('aria-invalid');
         });
+        const fullInvalid = fullAttempted && !fullCorrect;
+        fullCodeInput.classList.toggle('vault-input-error', fullInvalid);
+        if (fullInvalid) fullCodeInput.setAttribute('aria-invalid', 'true');
+        else fullCodeInput.removeAttribute('aria-invalid');
         if (savedCheckbox.checked) savedCheckbox.removeAttribute('aria-invalid');
         else savedCheckbox.setAttribute('aria-invalid', 'true');
-        if (incorrect.length || !savedCheckbox.checked) {
+        if (!recoveryCodeConfirmed || !savedCheckbox.checked) {
           const problems = [];
-          if (incorrect.length) {
+          if (!recoveryCodeConfirmed && fullAttempted) {
+            problems.push('完整恢复码不匹配，请从当前页面重新复制全部 8 组');
+          } else if (!recoveryCodeConfirmed) {
             problems.push('请重新核对第 ' + incorrect.map(function (input) { return Number(input.dataset.groupIndex) + 1; }).join('、') + ' 组恢复码');
           }
           if (!savedCheckbox.checked) problems.push('请勾选“我已将恢复码单独保存”');
           feedback.textContent = problems.join('；') + '。';
           feedback.classList.add('vault-error');
-          const firstInvalid = incorrect[0] || savedCheckbox;
+          const firstInvalid = (fullAttempted && !fullCorrect ? fullCodeInput : incorrect[0]) || savedCheckbox;
           if (firstInvalid && typeof firstInvalid.focus === 'function') firstInvalid.focus();
           return;
         }
@@ -1534,7 +1664,7 @@
 
   async function regenerateRecoveryCode() {
     closeSecurityMenu();
-    const code = base32Encode(randomBytes(20));
+    const code = generateRecoveryCode();
     try {
       const wrap = await createRecoveryWrap(code, account.accountId, sessionKeyBytes);
       const confirmed = await confirmRecoveryCode(code, '保存新的恢复码', true);
