@@ -1,6 +1,7 @@
 'use strict';
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
+const ASSET_VERSION = '20260714-2';
 const SHELL_CACHE = `duomi-growth-shell-${CACHE_VERSION}`;
 const STATIC_CACHE = `duomi-growth-static-${CACHE_VERSION}`;
 const APP_CACHE_PREFIX = 'duomi-growth-';
@@ -25,7 +26,13 @@ const CACHE_FIRST_ASSETS = new Set([
 ]);
 
 const INSTALL_ASSETS = [
-  ...NETWORK_FIRST_ASSETS,
+  `/index.html?v=${ASSET_VERSION}`,
+  `/manifest.json?v=${ASSET_VERSION}`,
+  `/sw.js?v=${ASSET_VERSION}`,
+  `/app.js?v=${ASSET_VERSION}`,
+  `/secure-vault.js?v=${ASSET_VERSION}`,
+  `/styles.css?v=${ASSET_VERSION}`,
+  `/secure-vault.css?v=${ASSET_VERSION}`,
   ...CACHE_FIRST_ASSETS
 ];
 
@@ -82,7 +89,8 @@ self.addEventListener('install', (event) => {
         throw new Error(`Unable to cache required application asset: ${path}`);
       }
 
-      const targetCache = CACHE_FIRST_ASSETS.has(path) ? staticCache : shellCache;
+      const pathname = new URL(path, self.location.origin).pathname;
+      const targetCache = CACHE_FIRST_ASSETS.has(pathname) ? staticCache : shellCache;
       await targetCache.put(request, response);
     }));
 
@@ -118,7 +126,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request, '/index.html'));
+    event.respondWith(networkFirst(request, `/index.html?v=${ASSET_VERSION}`));
     return;
   }
 
