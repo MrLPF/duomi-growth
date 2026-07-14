@@ -15,19 +15,19 @@
   Cache-Control: no-cache, no-store, must-revalidate
 
 /app.js
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /secure-vault.js
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /styles.css
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /secure-vault.css
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /manifest.json
-  Cache-Control: no-cache, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /chart.umd.min.js
   Cache-Control: public, max-age=31536000, immutable
