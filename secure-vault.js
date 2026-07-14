@@ -47,6 +47,13 @@
     }
   }
 
+  class SessionInitializationError extends Error {
+    constructor() {
+      super('账户数据已安全保存，但主界面初始化失败。请刷新后使用密码解锁');
+      this.name = 'SessionInitializationError';
+    }
+  }
+
   function emptyVault() {
     return { childInfo: null, growthRecords: [], milkRecords: [], version: FORMAT_VERSION };
   }
@@ -108,7 +115,7 @@
   }
 
   function normalizeRecoveryCode(value) {
-    return String(value || '').toUpperCase().replace(/[^A-Z2-7]/g, '');
+    return String(value || '').normalize('NFKC').toUpperCase().replace(/[^A-Z2-7]/g, '');
   }
 
   function base32Decode(value) {
@@ -717,7 +724,11 @@
     const gate = element('div', { id: 'vaultGate', className: 'vault-gate', attributes: { role: 'dialog', 'aria-modal': 'true', 'aria-label': '本机加密账户' } }, gateCard);
 
     const recoveryCode = element('code', { id: 'vaultRecoveryCodeDisplay', className: 'vault-recovery-code' });
-    const recoveryConfirmForm = element('form', { id: 'vaultRecoveryConfirmForm', className: 'vault-dialog-card' },
+    const recoveryConfirmForm = element('form', {
+      id: 'vaultRecoveryConfirmForm',
+      className: 'vault-dialog-card',
+      attributes: { novalidate: '' }
+    },
       element('h2', { id: 'vaultRecoveryTitle', text: '保存恢复码' }),
       element('p', { className: 'vault-note', text: '恢复码只显示在这里，不会上传或写入磁盘。请单独抄写或保存在安全位置。' }),
       recoveryCode,
@@ -726,9 +737,15 @@
         element('input', { id: 'vaultRecoverySaved', type: 'checkbox', required: true }),
         element('span', { text: '我已将恢复码单独保存' })
       ),
+      element('p', {
+        id: 'vaultRecoveryConfirmMessage',
+        className: 'vault-message',
+        attributes: { 'aria-live': 'assertive' }
+      }),
       button('确认恢复码', 'vault-button vault-primary', 'submit'),
       button('取消', 'vault-button vault-secondary')
     );
+    recoveryConfirmForm.noValidate = true;
     recoveryConfirmForm.lastElementChild.id = 'vaultRecoveryConfirmCancel';
     const recoveryOverlay = element('div', { id: 'vaultRecoveryOverlay', className: 'vault-dialog-overlay', hidden: true, attributes: { role: 'dialog', 'aria-modal': 'true' } }, recoveryConfirmForm);
 
@@ -772,7 +789,7 @@
         element('h2', { text: '账户已创建' }),
         element('p', { className: 'vault-lead', text: '数据已写入并重新解密校验。请立即下载加密备份；恢复码本身不能替代丢失的备份文件。' }),
         button('立即下载 .duomi 备份', 'vault-button vault-primary'),
-        button('稍后在安全菜单导出', 'vault-button vault-secondary')
+        button('进入应用（稍后备份）', 'vault-button vault-secondary')
       )
     );
     const promptButtons = backupPrompt.querySelectorAll('button');
@@ -868,6 +885,13 @@
     });
     ui.setupForm.addEventListener('submit', beginSetup);
     document.getElementById('vaultSetupRestore').addEventListener('click', function () { showRestoreMode('setup'); });
+    document.getElementById('vaultRecoverySaved').addEventListener('change', function () {
+      if (!this.checked) return;
+      this.removeAttribute('aria-invalid');
+      const feedback = document.getElementById('vaultRecoveryConfirmMessage');
+      feedback.textContent = '';
+      feedback.classList.remove('vault-error');
+    });
     ui.unlockForm.addEventListener('submit', handleUnlock);
     document.getElementById('vaultForgotPassword').addEventListener('click', function () { setGateMode('recovery'); });
     document.getElementById('vaultUnlockRestore').addEventListener('click', function () { showRestoreMode('unlock'); });
@@ -946,6 +970,7 @@
       pendingSetup = { accountRecord, vaultRecord, keyBytes, key, initialVault, source };
       const confirmed = await confirmRecoveryCode(recoveryRaw, '保存本机账户恢复码', false);
       if (!confirmed) throw new Error('必须确认恢复码才能创建账户');
+      setGateMessage('恢复码已确认，正在写入并重新校验本机账户…');
       await commitSetup();
       ui.setupForm.reset();
     } catch (error) {
@@ -1004,7 +1029,7 @@
       ui.unlockForm.reset();
     } catch (error) {
       console.error(error);
-      setGateMessage('密码错误，或本机保险箱已损坏。', true);
+      setGateMessage(error instanceof SessionInitializationError ? error.message : '密码错误，或本机保险箱已损坏。', true);
     } finally {
       submit.disabled = false;
     }
@@ -1131,6 +1156,18 @@
       } catch (writeError) {
         if (previousAccount && previousVault) await putAccountAndVault(previousAccount, previousVault).catch(function () {});
         if (!previousAccount && !previousVault) await clearV2Database().catch(function () {});
+        clearSessionMemory();
+        account = previousAccount || null;
+        encryptedVaultRecord = previousVault || null;
+        if (previousAccount) {
+          setGateMode('unlock');
+        } else {
+          await refreshLegacySourceUi();
+          setGateMode('setup');
+        }
+        if (writeError instanceof SessionInitializationError) {
+          throw new Error('主界面初始化失败，备份恢复已回滚；原账户和数据未被修改');
+        }
         throw writeError;
       }
     } catch (error) {
@@ -1151,9 +1188,22 @@
     sessionVault = normalizeVault(clearVault);
     sessionRevision = vaultRecord.revision;
     writeQueue = Promise.resolve();
+    try {
+      if (typeof window.initializeGrowthApp === 'function') window.initializeGrowthApp();
+    } catch (error) {
+      console.error('主界面初始化失败', error);
+      if (typeof window.resetGrowthAppForLock === 'function') {
+        try { window.resetGrowthAppForLock(); } catch (resetError) { console.error(resetError); }
+      }
+      clearSessionMemory();
+      if (keyBytes && typeof keyBytes.fill === 'function') keyBytes.fill(0);
+      account = accountRecord;
+      encryptedVaultRecord = vaultRecord;
+      setGateMode('unlock', '账户数据已安全保存，但主界面初始化失败。请刷新页面后使用密码解锁，数据不会丢失。');
+      throw new SessionInitializationError();
+    }
     hideGate();
-    if (typeof window.initializeGrowthApp === 'function') window.initializeGrowthApp();
-    await requestPersistentStorage();
+    void requestPersistentStorage();
     resetIdleTimer();
     if (channel) channel.postMessage({ type: 'session-open', tabId, accountId: accountRecord.accountId });
   }
@@ -1288,12 +1338,34 @@
     indices.forEach(function (index) {
       const input = element('input', {
         className: 'vault-input vault-monospace', type: 'text', required: true,
-        maxLength: 4, autocomplete: 'off', attributes: { 'data-group-index': String(index) }
+        maxLength: 4,
+        autocomplete: 'off',
+        attributes: {
+          'data-group-index': String(index),
+          autocapitalize: 'characters',
+          spellcheck: 'false'
+        }
+      });
+      input.addEventListener('input', function () {
+        const normalized = normalizeRecoveryCode(input.value).slice(0, 4);
+        if (input.value !== normalized) input.value = normalized;
+        input.classList.remove('vault-input-error');
+        input.removeAttribute('aria-invalid');
+        const feedback = document.getElementById('vaultRecoveryConfirmMessage');
+        feedback.textContent = '';
+        feedback.classList.remove('vault-error');
       });
       fields.appendChild(field('请输入第 ' + (index + 1) + ' 组', input));
     });
-    document.getElementById('vaultRecoverySaved').checked = false;
+    const savedCheckbox = document.getElementById('vaultRecoverySaved');
+    savedCheckbox.checked = false;
+    savedCheckbox.removeAttribute('aria-invalid');
+    const feedback = document.getElementById('vaultRecoveryConfirmMessage');
+    feedback.textContent = '';
+    feedback.classList.remove('vault-error');
     const cancel = document.getElementById('vaultRecoveryConfirmCancel');
+    const confirmButton = ui.recoveryConfirmForm.querySelector('[type="submit"]');
+    confirmButton.disabled = false;
     cancel.hidden = !allowCancel;
     ui.recoveryOverlay.hidden = false;
     return new Promise(function (resolve) {
@@ -1310,13 +1382,32 @@
       function submitHandler(event) {
         event.preventDefault();
         const inputs = fields.querySelectorAll('input[data-group-index]');
-        const correct = Array.from(inputs).every(function (input) {
-          return normalizeRecoveryCode(input.value) === groups[Number(input.dataset.groupIndex)];
+        const incorrect = Array.from(inputs).filter(function (input) {
+          return normalizeRecoveryCode(input.value) !== groups[Number(input.dataset.groupIndex)];
         });
-        if (!correct) {
-          inputs.forEach(function (input) { input.classList.toggle('vault-input-error', normalizeRecoveryCode(input.value) !== groups[Number(input.dataset.groupIndex)]); });
+        inputs.forEach(function (input) {
+          const invalid = incorrect.includes(input);
+          input.classList.toggle('vault-input-error', invalid);
+          if (invalid) input.setAttribute('aria-invalid', 'true');
+          else input.removeAttribute('aria-invalid');
+        });
+        if (savedCheckbox.checked) savedCheckbox.removeAttribute('aria-invalid');
+        else savedCheckbox.setAttribute('aria-invalid', 'true');
+        if (incorrect.length || !savedCheckbox.checked) {
+          const problems = [];
+          if (incorrect.length) {
+            problems.push('请重新核对第 ' + incorrect.map(function (input) { return Number(input.dataset.groupIndex) + 1; }).join('、') + ' 组恢复码');
+          }
+          if (!savedCheckbox.checked) problems.push('请勾选“我已将恢复码单独保存”');
+          feedback.textContent = problems.join('；') + '。';
+          feedback.classList.add('vault-error');
+          const firstInvalid = incorrect[0] || savedCheckbox;
+          if (firstInvalid && typeof firstInvalid.focus === 'function') firstInvalid.focus();
           return;
         }
+        confirmButton.disabled = true;
+        feedback.textContent = '恢复码确认成功，正在安全保存…';
+        feedback.classList.remove('vault-error');
         cleanup(true);
       }
       function cancelHandler() { cleanup(false); }

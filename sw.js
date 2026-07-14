@@ -1,7 +1,7 @@
 'use strict';
 
-const CACHE_VERSION = 'v3';
-const ASSET_VERSION = '20260714-2';
+const CACHE_VERSION = 'v4';
+const ASSET_VERSION = '20260714-3';
 const SHELL_CACHE = `duomi-growth-shell-${CACHE_VERSION}`;
 const STATIC_CACHE = `duomi-growth-static-${CACHE_VERSION}`;
 const APP_CACHE_PREFIX = 'duomi-growth-';

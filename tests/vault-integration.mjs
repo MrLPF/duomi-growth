@@ -49,6 +49,13 @@ function submit(window, selector) {
   form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
 }
 
+function requestSubmit(window, selector) {
+  const form = window.document.querySelector(selector);
+  assert(form, `Missing form ${selector}`);
+  if (typeof form.requestSubmit === 'function') form.requestSubmit();
+  else form.querySelector('[type="submit"]').click();
+}
+
 function click(window, selector) {
   const target = window.document.querySelector(selector);
   assert(target, `Missing target ${selector}`);
@@ -171,31 +178,64 @@ async function createEnvironment({ indexedDB = new IDBFactory(), seedLocalStorag
   return { dom, window, indexedDB, downloads, consoleErrors };
 }
 
-async function confirmDisplayedRecoveryCode(environment) {
+async function confirmDisplayedRecoveryCode(environment, { exerciseValidation = false } = {}) {
   const { window } = environment;
   await waitFor(() => !window.document.querySelector('#vaultRecoveryOverlay').hidden, 'Recovery confirmation did not open');
   const code = window.document.querySelector('#vaultRecoveryCodeDisplay').textContent;
   const groups = code.split('-');
+  const form = window.document.querySelector('#vaultRecoveryConfirmForm');
+  const inputs = Array.from(window.document.querySelectorAll('#vaultRecoveryGroupFields input'));
+  const saved = window.document.querySelector('#vaultRecoverySaved');
+  const feedback = window.document.querySelector('#vaultRecoveryConfirmMessage');
   assert.equal(groups.length, 8);
   assert.equal(groups.join('').length, 32);
-  for (const input of window.document.querySelectorAll('#vaultRecoveryGroupFields input')) {
-    input.value = groups[Number(input.dataset.groupIndex)];
+  assert.equal(form.noValidate, true);
+
+  for (const input of inputs) {
+    setValue(window, `input[data-group-index="${input.dataset.groupIndex}"]`, groups[Number(input.dataset.groupIndex)]);
   }
-  window.document.querySelector('#vaultRecoverySaved').checked = true;
-  submit(window, '#vaultRecoveryConfirmForm');
+
+  if (exerciseValidation) {
+    requestSubmit(window, '#vaultRecoveryConfirmForm');
+    await waitFor(() => feedback.textContent.includes('请勾选'), 'Missing saved-code feedback was not shown');
+    assert.equal(window.document.querySelector('#vaultRecoveryOverlay').hidden, false);
+    assert.equal(saved.getAttribute('aria-invalid'), 'true');
+
+    saved.checked = true;
+    saved.dispatchEvent(new window.Event('change', { bubbles: true }));
+    const firstInput = inputs[0];
+    const expected = groups[Number(firstInput.dataset.groupIndex)];
+    setValue(window, `input[data-group-index="${firstInput.dataset.groupIndex}"]`, expected === 'AAAA' ? 'BBBB' : 'AAAA');
+    requestSubmit(window, '#vaultRecoveryConfirmForm');
+    await waitFor(() => feedback.textContent.includes('请重新核对第'), 'Wrong recovery-group feedback was not shown');
+    assert.equal(firstInput.getAttribute('aria-invalid'), 'true');
+
+    const fullWidth = expected.replace(/[A-Z2-7]/g, (character) => String.fromCharCode(character.charCodeAt(0) + 0xfee0));
+    setValue(window, `input[data-group-index="${firstInput.dataset.groupIndex}"]`, fullWidth);
+    assert.equal(firstInput.value, expected, 'Full-width recovery characters were not normalized');
+  }
+
+  saved.checked = true;
+  saved.dispatchEvent(new window.Event('change', { bubbles: true }));
+  requestSubmit(window, '#vaultRecoveryConfirmForm');
   return code;
 }
 
-async function createAccount(environment, { username = '测试用户', password = PASSWORD } = {}) {
+async function createAccount(environment, { username = '测试用户', password = PASSWORD, exerciseRecoveryValidation = false } = {}) {
   const { window } = environment;
   setValue(window, '#vaultSetupUsername', username);
   setValue(window, '#vaultSetupPassword', password);
   setValue(window, '#vaultSetupConfirm', password);
   submit(window, '#vaultSetupForm');
-  const recoveryCode = await confirmDisplayedRecoveryCode(environment);
+  const recoveryCode = await confirmDisplayedRecoveryCode(environment, { exerciseValidation: exerciseRecoveryValidation });
   await waitFor(() => !window.document.querySelector('#vaultBackupPrompt').hidden, 'Backup prompt did not open');
+  assert.equal(window.document.querySelector('#vaultRecoveryOverlay').hidden, true);
+  assert.equal(window.document.querySelector('#vaultGate').hidden, true);
+  assert.equal(window.document.body.classList.contains('secure-locked'), false);
+  assert.equal(window.DuomiVault.isUnlocked(), true);
   click(window, '#vaultBackupLater');
-  await waitFor(() => window.DuomiVault.isUnlocked(), 'Account did not unlock after creation');
+  await waitFor(() => window.document.querySelector('#vaultBackupPrompt').hidden, 'Backup prompt did not close');
+  assert(window.document.querySelector('.page-section.active'), 'Main application did not become active');
   return recoveryCode;
 }
 
@@ -289,7 +329,26 @@ async function restoreBackup(environment, backupText, mode, credential) {
 async function run() {
   const sharedIndexedDB = new IDBFactory();
   const primary = await createEnvironment({ indexedDB: sharedIndexedDB });
-  const recoveryCode = await createAccount(primary);
+  const recoveryCode = await createAccount(primary, { exerciseRecoveryValidation: true });
+
+  const initializationFailure = await createEnvironment();
+  const healthyInitializer = initializationFailure.window.initializeGrowthApp;
+  initializationFailure.window.initializeGrowthApp = () => { throw new Error('synthetic initialization failure'); };
+  setValue(initializationFailure.window, '#vaultSetupUsername', '初始化恢复测试');
+  setValue(initializationFailure.window, '#vaultSetupPassword', PASSWORD);
+  setValue(initializationFailure.window, '#vaultSetupConfirm', PASSWORD);
+  submit(initializationFailure.window, '#vaultSetupForm');
+  await confirmDisplayedRecoveryCode(initializationFailure);
+  await waitFor(
+    () => !initializationFailure.window.document.querySelector('#vaultUnlockForm').hidden
+      && initializationFailure.window.document.querySelector('#vaultGateMessage').textContent.includes('账户数据已安全保存'),
+    'Initialization failure did not return to a visible unlock screen'
+  );
+  assert.equal(initializationFailure.window.DuomiVault.isUnlocked(), false);
+  assert(await readStore(initializationFailure.indexedDB, 'account'), 'Committed account was lost after initialization failure');
+  initializationFailure.window.initializeGrowthApp = healthyInitializer;
+  await unlock(initializationFailure, PASSWORD, true);
+
   await addBusinessData(primary);
 
   const storedAccount = await readStore(sharedIndexedDB, 'account');
@@ -304,6 +363,34 @@ async function run() {
   }
 
   const { text: backupText } = await exportBackup(primary);
+
+  const restoreRollback = await createEnvironment();
+  const rollbackPassword = 'rollback account password 2026';
+  await createAccount(restoreRollback, { username: '保留的原账户', password: rollbackPassword });
+  const originalRollbackAccount = await readStore(restoreRollback.indexedDB, 'account');
+  const restoreInitializer = restoreRollback.window.initializeGrowthApp;
+  restoreRollback.window.DuomiVault.openSecurityMenu();
+  click(restoreRollback.window, '#vaultImportBackup');
+  await waitFor(() => !restoreRollback.window.document.querySelector('#vaultRestoreForm').hidden, 'Restore form did not open from the security menu');
+  const rollbackFileInput = restoreRollback.window.document.querySelector('#vaultBackupFile');
+  const rollbackBackupFile = { size: Buffer.byteLength(backupText), text: async () => backupText };
+  Object.defineProperty(rollbackFileInput, 'files', { configurable: true, value: [rollbackBackupFile] });
+  rollbackFileInput.dispatchEvent(new restoreRollback.window.Event('change', { bubbles: true }));
+  await waitFor(() => restoreRollback.window.document.querySelector('#vaultBackupSummary').textContent.includes('测试用户'), 'Rollback test backup was not parsed');
+  setValue(restoreRollback.window, '#vaultRestoreMode', 'password');
+  setValue(restoreRollback.window, '#vaultRestoreCredential', PASSWORD);
+  restoreRollback.window.initializeGrowthApp = () => { throw new Error('synthetic restore initialization failure'); };
+  submit(restoreRollback.window, '#vaultRestoreForm');
+  await waitFor(
+    () => restoreRollback.window.document.querySelector('#vaultGateMessage').textContent.includes('恢复已回滚'),
+    'Initialization failure did not roll back backup replacement'
+  );
+  const accountAfterRollback = await readStore(restoreRollback.indexedDB, 'account');
+  assert.equal(accountAfterRollback.accountId, originalRollbackAccount.accountId);
+  assert.equal(restoreRollback.window.document.querySelector('#vaultUnlockUsername').textContent, '保留的原账户');
+  assert.equal(restoreRollback.window.DuomiVault.isUnlocked(), false);
+  restoreRollback.window.initializeGrowthApp = restoreInitializer;
+  await unlock(restoreRollback, rollbackPassword, true);
 
   await primary.window.DuomiVault.lock();
   assert.equal(primary.window.getRecords().length, 0);
@@ -479,11 +566,11 @@ async function run() {
 
   await wait(50);
 
-  for (const environment of [primary, secondTab, passwordRestore, recoveryRestore, corruptRestore, migrated, dualSource, failedMigration, reloaded, background]) {
+  for (const environment of [primary, initializationFailure, restoreRollback, secondTab, passwordRestore, recoveryRestore, corruptRestore, migrated, dualSource, failedMigration, reloaded, background]) {
     for (const args of environment.consoleErrors) {
       const text = args.map((value) => value?.message || String(value)).join(' ');
       assert(
-        /operation failed|明确选择|已损坏/i.test(text),
+        /operation failed|明确选择|已损坏|synthetic.*initialization failure|主界面初始化失败|账户数据已安全保存|恢复已回滚/i.test(text),
         `Unexpected application console error: ${text}`
       );
     }

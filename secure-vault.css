@@ -319,6 +319,11 @@
   accent-color: var(--vault-pink-dark);
 }
 
+.vault-check-row input[aria-invalid="true"] {
+  outline: 2px solid var(--vault-danger);
+  outline-offset: 2px;
+}
+
 #vaultActionFields {
   display: grid;
   gap: 13px;

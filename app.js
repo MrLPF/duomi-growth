@@ -1415,7 +1415,7 @@
     // 注册 Service Worker 实现PWA离线使用
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=20260714-2')
+        navigator.serviceWorker.register('sw.js?v=20260714-3')
           .then((registration) => {
             console.log('Service Worker 注册成功:', registration.scope);
           })
